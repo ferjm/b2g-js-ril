@@ -20,16 +20,10 @@ with({parcel: Parcel.prototype}) {
     this._buffer = data;
   }
 
-  parcel.writeString = function(s) {
-    //XXX: implement me  
-  }
-
-  parcel.readString = function(s) {
-    //XXX: implement me
-  }
-
-  parcel.writeRaw = function(l) {
-    //XXX: implement me
+  parcel.writeString = function(str) {
+    var format = str.length.toString() + 's';
+    this._buffer = this._buffer.concat(Struct.Pack(format,[str]));
+    this._format += format;
   }
 
   parcel.writeInt = function(i) {
@@ -45,10 +39,7 @@ with({parcel: Parcel.prototype}) {
 
   parcel.toString = function() {
     var unpacked = Struct.Unpack(this._format,this._buffer);
-    var unpacked_hex="[";
-    for(var i in unpacked)
-      unpacked_hex += "0x"+unpacked[i].toString(16).toUpperCase()+ " ,";
-    return unpacked_hex + "]";
+    return unpacked.toString();
   }
 }
 

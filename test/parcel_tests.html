@@ -1,6 +1,6 @@
 <html>
 <head>
-<script type="text/javascript" src="../js/struct.js"></script>
+<script type="text/javascript" src="../js/parcel.js"></script>
 <script type="text/javascript">
 
 function AssertException(message) { this.message = message; }
@@ -35,6 +35,11 @@ with({parcelTest: ParcelTest.prototype}) {
     alert(this.p.readInt());
   }
 
+  parcelTest.writeString = function(s) {
+    this.p.writeString(s);
+    document.getElementById('parcel').value = this.p.toString();
+  }
+
 }
 
 var test = new ParcelTest();
@@ -46,6 +51,8 @@ var test = new ParcelTest();
 <input type="text" id="int" value="0">
 <button type="button" onclick="test.writeInt(document.getElementById('int').value)">Write Int</button>
 <button type="button" onclick="test.readInt()">Read int</button>
+<br><input type="text" id="string" value="">
+<button type="button" onclick="test.writeString(document.getElementById('string').value)">Write String</button>
 <br><input type="text" id="parcel" size="100">
 </body>
 </html> 
