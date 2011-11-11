@@ -1,3 +1,5 @@
+/* -*- Mode: Java; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
+/* vim: set shiftwidth=2 tabstop=2 autoindent cindent expandtab: */
 const gTransportService = Cc["@mozilla.org/network/socket-transport-service;1"]
                             .getService(Ci.nsISocketTransportService);
 
@@ -15,17 +17,22 @@ function SocketListener() {};
 SocketListener.prototype = {
 
   listen: function listen(host, port) {
+    this.stopped = false;
     this.socket = gTransportService.createTransport(null, 0, host, port, null);
     this.inputStream = this.socket.openInputStream(0, 0, 0);
-    this.binaryInputStream = nsIBinaryInputStream(this.inputStream);
+    this.binaryInputStream = BinaryInputStream(this.inputStream);
     this.outputStream = this.socket.openOutputStream(0, 0, 0);
-    this.binaryOutputStream = nsIBinaryOutputStream(this.outputStream);
+    this.binaryOutputStream = BinaryOutputStream(this.outputStream);
     
     this.inputStream.asyncWait(this, 0, 0, Services.tm.currentThread);
   },
 
+  m: new RILManager(),
+  
   stop: function stop() {
-    this.socket.close();
+    console.print("Stopping socket");
+    this.stopped = true;
+    this.socket.close(0);
   },
 
   /**
@@ -33,16 +40,17 @@ SocketListener.prototype = {
    */
   onInputStreamReady: function onInputStreamReady() {
     let length;
-    while (length = this.inputStream.available()) {
-      let byte_array = this.binaryInputStream.readByteArray(length);
-      let array_buffer = Uint8Array(byte_array);
-      this.processData(array_buffer);
+    while (!this.stopped && (length = this.inputStream.available())) {
+      this.processData(this.binaryInputStream.readByteArray(length));
     }
-    this.inputStream.asyncWait(this, 0, 0, Services.tm.currentThread);
+    if(!this.stopped) {
+      this.inputStream.asyncWait(this, 0, 0, Services.tm.currentThread);
+    }
   },
 
   processData: function processData(array_buffer) {
-    //TODO Go on our merry way and decode the parcels
+    console.print("We got some data!");
+    this.m.receiveData(array_buffer);
   },
 
   sendData: function sendData(array_buffer) {
