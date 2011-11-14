@@ -1,7 +1,7 @@
-/* -*- Mode: Java; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
+/* -*- tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
 /* vim: set shiftwidth=2 tabstop=2 autoindent cindent expandtab: */
 const gTransportService = Cc["@mozilla.org/network/socket-transport-service;1"]
-                            .getService(Ci.nsISocketTransportService);
+  .getService(Ci.nsISocketTransportService);
 
 const BinaryInputStream = Components.Constructor(
   "@mozilla.org/binaryinputstream;1",
@@ -13,7 +13,10 @@ const BinaryOutputStream = Components.Constructor(
   "nsIBinaryOutputStream",
   "setOutputStream");
 
-function SocketListener() {};
+function SocketListener(ril) {
+  this.ril = ril;
+}
+
 SocketListener.prototype = {
 
   listen: function listen(host, port) {
@@ -23,11 +26,11 @@ SocketListener.prototype = {
     this.binaryInputStream = BinaryInputStream(this.inputStream);
     this.outputStream = this.socket.openOutputStream(0, 0, 0);
     this.binaryOutputStream = BinaryOutputStream(this.outputStream);
-    
     this.inputStream.asyncWait(this, 0, 0, Services.tm.currentThread);
+    this.ril.setSendFunc(this.sendData.bind(this));
   },
 
-  m: new RILManager(),
+  ril: null,
   
   stop: function stop() {
     console.print("Stopping socket");
@@ -49,13 +52,12 @@ SocketListener.prototype = {
   },
 
   processData: function processData(array_buffer) {
-    console.print("We got some data!");
-    this.m.receiveData(array_buffer);
+    this.ril.receive(array_buffer);
   },
 
   sendData: function sendData(array_buffer) {
     let byte_array = Uint8Array(array_buffer);
-    this.binaryOutputStream.writeByteArray(byte_array, byte_array.length);
+    this.binaryOutputStream.writeByteArray([x for each (x in byte_array)], byte_array.length);
     this.binaryOutputStream.flush();
   }
 
