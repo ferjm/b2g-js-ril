@@ -65,6 +65,9 @@ RILParcel.prototype = {
     else if(this.request_type == null) {
       this.request_type = rt;
     }
+    if(!(this.request_type in this.parcel_types)) {
+      console.print("---------- ERROR Parcel type " + this.request_type  + " UNKNOWN");
+    }
     for(let x in this.parcel_types[this.request_type]) {
       this[x] = this.parcel_types[this.request_type][x];
     }
@@ -96,7 +99,7 @@ RILParcel.prototype = {
     this.data = [];
   },
   voidPack: function () {
-    return 0;
+    this.buffer = new ArrayBuffer(0);
   },
   noUnpack: function () {
     throw "Parcel type does not allow for unpacking";
@@ -109,6 +112,7 @@ RILParcel.prototype = {
     this.data = this.byteArrayToStr(16, size);
   },
   stringPack: function () {
+    throw "OMG STRING PACKING IS SO WRONG PACK THE SIZE YOU FOOL";
     this.buffer = this.strToByteArray(this.data);
   },
   intUnpack: function() {
@@ -119,9 +123,26 @@ RILParcel.prototype = {
     let pack_array = Int32Array(this.buffer, 0, 2);
     pack_array[0] = 1;
     pack_array[1] = this.data;
-    return 8;
   },
   stringListUnpack: function () {
+    let num_strings = Uint32Array(this.buffer, 12, 1)[0];
+    let offset = 16;
+    this.data = [];
+    for(let i = 0; i < num_strings; ++i)
+    {
+      let size = Uint32Array(this.buffer, offset, 1)[0];
+      offset += 4;
+      if (size == 4294967295) {
+        console.print("NULL STRING")
+        continue;
+      }
+      size++;
+      if(size % 2 == 1) {
+        size++;
+      }
+      this.data.push(this.byteArrayToStr(offset, size));
+      offset += size * 2;
+    }
   },
   stringListPack: function () {
   },
@@ -149,7 +170,23 @@ RILParcel.prototype = {
    t[RIL_REQUEST_CHANGE_SIM_PIN2] = null;
    t[RIL_REQUEST_ENTER_NETWORK_DEPERSONALIZATION] = null;
    t[RIL_REQUEST_GET_CURRENT_CALLS] = null;
-   t[RIL_REQUEST_DIAL] = null;
+   t[RIL_REQUEST_DIAL] = {
+     request_name: "RIL_REQUEST_DIAL",
+     pack: function() {
+       // TODO: Actually unpack data correctly
+       let pn_str = this.strToByteArray(this.data[0]);
+       this.buffer = new ArrayBuffer(4 + pn_str.byteLength + 4 + 4 + 4);
+       Uint32Array(this.buffer, 0, 1)[0] = pn_str.byteLength / 2;
+       (Uint8Array(this.buffer, 4, pn_str.byteLength)).set(Uint8Array(pn_str, 0, pn_str.byteLength));
+       //Uint32Array(this.buffer, ).set([0,0,0]);
+       /*
+       uus[0] = 0;
+       uus[1] = 0;
+       uus[2] = 0;
+        */
+     },
+     unpack: p.voidUnpack
+   };
    t[RIL_REQUEST_GET_IMSI] = {
      request_name: "RIL_REQUEST_GET_IMSI",
      pack: p.voidPack,
@@ -164,9 +201,17 @@ RILParcel.prototype = {
    t[RIL_REQUEST_UDUB] = null;
    t[RIL_REQUEST_LAST_CALL_FAIL_CAUSE] = null;
    t[RIL_REQUEST_SIGNAL_STRENGTH] = null;
-   t[RIL_REQUEST_REGISTRATION_STATE] = null;
-   t[RIL_REQUEST_GPRS_REGISTRATION_STATE] = null;
-   t[RIL_REQUEST_OPERATOR]  = {
+   t[RIL_REQUEST_REGISTRATION_STATE] = {
+     request_name: "RIL_REQUEST_REGISTRATION_STATE",
+     pack: p.voidPack,
+     unpack: p.stringListUnpack
+   };
+   t[RIL_REQUEST_GPRS_REGISTRATION_STATE] = {
+     request_name: "RIL_REQUEST_GPRS_REGISTRATION_STATE",
+     pack: p.voidPack,
+     unpack: p.stringListUnpack
+   };
+   t[RIL_REQUEST_OPERATOR] = {
      request_name: "RIL_REQUEST_OPERATOR",
      pack: p.voidPack,
      unpack: p.stringListUnpack
@@ -205,7 +250,11 @@ RILParcel.prototype = {
    t[RIL_REQUEST_QUERY_FACILITY_LOCK] = null;
    t[RIL_REQUEST_SET_FACILITY_LOCK] = null;
    t[RIL_REQUEST_CHANGE_BARRING_PASSWORD] = null;
-   t[RIL_REQUEST_QUERY_NETWORK_SELECTION_MODE] = null;
+   t[RIL_REQUEST_QUERY_NETWORK_SELECTION_MODE] = {
+     request_name: "RIL_REQUEST_QUERY_NETWORK_SELECTION_MODE",
+     pack: p.voidPack,
+     unpack: p.intUnpack
+   };
    t[RIL_REQUEST_SET_NETWORK_SELECTION_AUTOMATIC] = null;
    t[RIL_REQUEST_SET_NETWORK_SELECTION_MANUAL] = null;
    t[RIL_REQUEST_QUERY_AVAILABLE_NETWORKS] = null;
@@ -225,7 +274,11 @@ RILParcel.prototype = {
    t[RIL_REQUEST_RESET_RADIO] = null;
    t[RIL_REQUEST_OEM_HOOK_RAW] = null;
    t[RIL_REQUEST_OEM_HOOK_STRINGS] = null;
-   t[RIL_REQUEST_SCREEN_STATE] = null;
+   t[RIL_REQUEST_SCREEN_STATE] = {
+     request_name: "RIL_REQUEST_SCREEN_STATE",
+     pack: p.intPack,
+     unpack: p.voidUnpack
+   };
    t[RIL_REQUEST_SET_SUPP_SVC_NOTIFICATION] = null;
    t[RIL_REQUEST_WRITE_SMS_TO_SIM] = null;
    t[RIL_REQUEST_DELETE_SMS_ON_SIM] = null;
@@ -237,8 +290,16 @@ RILParcel.prototype = {
    t[RIL_REQUEST_STK_SEND_TERMINAL_RESPONSE] = null;
    t[RIL_REQUEST_STK_HANDLE_CALL_SETUP_REQUESTED_FROM_SIM] = null;
    t[RIL_REQUEST_EXPLICIT_CALL_TRANSFER] = null;
-   t[RIL_REQUEST_SET_PREFERRED_NETWORK_TYPE] = null;
-   t[RIL_REQUEST_GET_PREFERRED_NETWORK_TYPE] = null;
+   t[RIL_REQUEST_SET_PREFERRED_NETWORK_TYPE] = {
+     request_name: "RIL_REQUEST_SET_PREFERRED_NETWORK_TYPE",
+     pack: p.intPack,
+     unpack: p.voidUnpack
+   };
+   t[RIL_REQUEST_GET_PREFERRED_NETWORK_TYPE] = {
+     request_name: "RIL_REQUEST_GET_PREFERRED_NETWORK_TYPE",
+     pack: p.voidPack,
+     unpack: p.intUnpack
+   };
    t[RIL_REQUEST_GET_NEIGHBORING_CELL_IDS] = null;
    t[RIL_REQUEST_SET_LOCATION_UPDATES] = null;
    t[RIL_REQUEST_CDMA_SET_SUBSCRIPTION] = null;
@@ -273,8 +334,16 @@ RILParcel.prototype = {
      pack: p.noPack,
      unpack: p.intUnpack
    };
-   t[RIL_UNSOL_RESPONSE_CALL_STATE_CHANGED] = null;
-   t[RIL_UNSOL_RESPONSE_NETWORK_STATE_CHANGED] = null;
+   t[RIL_UNSOL_RESPONSE_CALL_STATE_CHANGED] = {
+     request_name: "RIL_UNSOL_RESPONSE_CALL_STATE_CHANGED",
+     pack: p.noPack,
+     unpack: p.voidUnpack
+   };
+   t[RIL_UNSOL_RESPONSE_NETWORK_STATE_CHANGED] = {
+     request_name: "RIL_UNSOL_RESPONSE_NETWORK_STATE_CHANGED",
+     pack: p.noPack,
+     unpack: p.voidUnpack
+   };
    t[RIL_UNSOL_RESPONSE_NEW_SMS] = null;
    t[RIL_UNSOL_RESPONSE_NEW_SMS_STATUS_REPORT] = null;
    t[RIL_UNSOL_RESPONSE_NEW_SMS_ON_SIM] = null;
