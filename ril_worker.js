@@ -1150,12 +1150,13 @@ let Phone = {
    *        Object containing the message. Messages are supposed 
    */
   handleDOMMessage: function handleMessage(message) {
-    let method = this[message.method];
+    if (DEBUG) debug("Received DOM message " + JSON.stringify(message));
+    let method = this[message.type];
     if (typeof method != "function") {
       debug("Don't know what to do with message " + JSON.stringify(message));
       return;
     }
-    method.apply(this, message.arguments);
+    method.call(this, message);
   },
 
   /**

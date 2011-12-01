@@ -19,9 +19,12 @@
 <script type="application/javascript;version=1.8" src="socket.js"></script>
 <script type="application/javascript;version=1.8" src="ril_vars.js"></script>
 <script type="application/javascript;version=1.8" src="ril_worker.js"></script>
+<script type="application/javascript;version=1.8" src="dom_telephony.js"></script>
 <script type="application/javascript;version=1.8">
 
 function init() {
+  window.addEventListener("message", onmessage);
+
   window.setTimeout(function () {
     Cu.import("resource://gre/modules/Services.jsm");
     let chromeWin = Services.wm.getMostRecentWindow("navigator:browser");
@@ -54,6 +57,15 @@ function cleanup() {
     SocketListener.stop();
   }
 }
+
+
+gTelephonyWorker = new nsTelephonyWorker(window);
+navigator.mozTelephony = new Telephony(window);
+
+navigator.mozTelephony.onradiostatechange = function (event) {
+  console.log("New Radio State in the DOM: " + this.radioState);
+}
+
 
 </script>
 
