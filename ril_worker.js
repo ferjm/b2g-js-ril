@@ -673,17 +673,18 @@ RIL[RIL_REQUEST_GET_CURRENT_CALLS] = function RIL_REQUEST_GET_CURRENT_CALLS() {
   let calls = [];
   let calls_length = Buf.readUint32();
   debug("No. of current calls: " + calls_length);
-/*
+
   for (let i = 0; i < calls_length; i++) {
     let dc = {
       state:              Buf.readUint32(), // CALLSTATE_* constants
       index:              Buf.readUint32(),
-      TOA:                Buf.readUint32(),
-      isMpty:             (0 != Buf.readUint32()),
-      isMT:               (0 != Buf.readUint32()),
+      toa:                Buf.readUint32(),
+      isMpty:             Boolean(Buf.readUint32()),
+      isMT:               Boolean(Buf.readUint32()),
       als:                Buf.readUint32(),
-      isVoice:            (0 == Buf.readUint32()) ? false : true,
-      isVoicePrivacy:     (0 != Buf.readUint32()),
+      isVoice:            Boolean(Buf.readUint32()),
+      isVoicePrivacy:     Boolean(Buf.readUint32()),
+      somethingOrOther:   Buf.readUint32(), //XXX TODO whatziz? not in ril.h, but it's in the output...
       number:             Buf.readString(), //TODO munge with TOA
       numberPresentation: Buf.readUint32(), // Connection.PRESENTATION XXX TODO
       name:               Buf.readString(),
@@ -700,7 +701,7 @@ RIL[RIL_REQUEST_GET_CURRENT_CALLS] = function RIL_REQUEST_GET_CURRENT_CALLS() {
     }
     calls.push(dc);
   }
-*/
+
   Phone.onCurrentCalls(calls);
 };
 RIL[RIL_REQUEST_DIAL] = null;
