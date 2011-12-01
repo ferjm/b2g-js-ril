@@ -526,6 +526,22 @@ let RIL = {
     Buf.sendParcel();
   },
 
+  getRegistrationState: function getRegistrationState() {
+    Buf.simpleRequest(RIL_REQUEST_REGISTRATION_STATE);
+  },
+
+  getGPRSRegistrationState: function getGPRSRegistrationState() {
+    Buf.simpleRequest(RIL_REQUEST_GPRS_REGISTRATION_STATE);
+  },
+
+  getOperator: function getOperator() {
+    Buf.simpleRequest(RIL_REQUEST_OPERATOR);
+  },
+
+  getNetworkSelectionMode: function getNetworkSelectionMode() {
+    Buf.simpleRequest(RIL_REQUEST_QUERY_NETWORK_SELECTION_MODE);
+  },
+
   /**
    * Get current calls.
    */
@@ -1076,12 +1092,11 @@ let Phone = {
    * Request various states about the network.
    */
   requestNetworkInfo: function requestNetworkInfo() {
-    debug("Requesting phone state");
-    //TODO convert to method calls on RIL.
-    Buf.simpleRequest(RIL_REQUEST_REGISTRATION_STATE);
-    Buf.simpleRequest(RIL_REQUEST_GPRS_REGISTRATION_STATE);
-    Buf.simpleRequest(RIL_REQUEST_OPERATOR);
-    Buf.simpleRequest(RIL_REQUEST_QUERY_NETWORK_SELECTION_MODE);
+    if (DEBUG) debug("Requesting phone state");
+    RIL.getRegistrationState();
+    RIL.getGPRSRegistrationState(); //TODO only GSM
+    RIL.getOperator();
+    RIL.getNetworkSelectionMode();
   },
 
   /**
