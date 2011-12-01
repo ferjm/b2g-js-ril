@@ -890,7 +890,7 @@ let Phone = {
   /**
    * One of the RADIOSTATE_* constants.
    */
-  radioState: null,
+  radioState: RADIOSTATE_UNAVAILABLE,
 
   /**
    * Strings
@@ -958,6 +958,13 @@ let Phone = {
         type: "radiostatechange",
         radioState: (newState == RADIOSTATE_OFF) ? "off" : "ready"
       });
+
+      //XXX TODO For now, just turn the radio on if it's off. for the real
+      // deal we probably want to do the opposite: start with a known state
+      // when we boot up and let the UI layer control the radio power.
+      if (newState == RADIOSTATE_OFF) {
+        RIL.setRadioPower(true);
+      }
     }
 
     if (newState == RADIOSTATE_UNAVAILABLE) {
