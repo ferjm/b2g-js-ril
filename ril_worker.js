@@ -132,7 +132,6 @@ let Buf = {
    */
 
   readUint8: function readUint8() {
-    //debug("Reading at " + this.incomingReadIndex);
     let value = this.incomingBytes[this.incomingReadIndex];
     this.incomingReadIndex = (this.incomingReadIndex + 1) %
                              this.INCOMING_BUFFER_LENGTH;
@@ -173,7 +172,11 @@ let Buf = {
     if (!(string_len % 2)) {
       delimiter += this.readUint16();
     }
-    debug("String delimiter: " + delimiter);
+    if (DEBUG) {
+      if (delimiter != 0) {
+        debug("Something's wrong, found string delimiter: " + delimiter);
+      }
+    }
     return s;
   },
 
@@ -269,8 +272,10 @@ let Buf = {
     // new data to the buffer. So the only edge case we need to handle
     // is when the incoming data is larger than the buffer size.
     if (incoming.length > this.INCOMING_BUFFER_LENGTH) {
-      debug("Current buffer of " + this.INCOMING_BUFFER_LENGTH +
-            " can't handle incoming " + incoming.length + " bytes ");
+      if (DEBUG) {
+        debug("Current buffer of " + this.INCOMING_BUFFER_LENGTH +
+              " can't handle incoming " + incoming.length + " bytes ");
+      }
       let oldBytes = this.incomingBytes;
       while (this.INCOMING_BUFFER_LENGTH < incoming.length) {
         this.INCOMING_BUFFER_LENGTH *= 2;
@@ -294,7 +299,9 @@ let Buf = {
         this.incomingReadIndex = 0;
         this.incomingWriteIndex += head.length;
       }
-      debug("New incoming buffer size is " + this.INCOMING_BUFFER_LENGTH);
+      if (DEBUG) {
+        debug("New incoming buffer size is " + this.INCOMING_BUFFER_LENGTH);
+      }
     }
 
     // We can let the typed arrays do the copying if the incoming data won't
