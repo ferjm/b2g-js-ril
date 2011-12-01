@@ -397,13 +397,13 @@ let Buf = {
     if (response_type == RESPONSE_TYPE_SOLICITED) {
       let token = this.readUint32();
       let error = this.readUint32();
+      request_type = this.tokenRequestMap[token];
       if (error) {
         //TODO
         debug("Received error " + error + " for solicited parcel type " +
-              response_type);
+              request_type);
         return;
       }
-      request_type = this.tokenRequestMap[token];
       debug("Solicited response for request type " + request_type +
             ", token " + token);
       delete this.tokenRequestMap[token];
