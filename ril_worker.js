@@ -1015,6 +1015,8 @@ let Phone = {
   onCurrentCalls: function onCurrentCalls(calls) {
     debug("onCurrentCalls");
     debug(calls);
+    //TODO 
+    this.sendDOMMessage({type: "callstatechange", callState: calls});
   },
 
   onCallStateChanged: function onCallStateChanged() {

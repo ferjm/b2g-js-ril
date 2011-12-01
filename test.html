@@ -59,15 +59,23 @@ function cleanup() {
 }
 
 
-gTelephonyWorker = new nsTelephonyWorker(window);
+gRadioInterface = new nsRadioInterface(window);
 navigator.mozTelephony = new Telephony(window);
 
 navigator.mozTelephony.onradiostatechange = function (event) {
   console.log("New Radio State in the DOM: " + this.radioState);
 }
 
+navigator.mozTelephony.onsignalstrengthchange = function (event) {
+  console.log("New Radio State in the DOM: " + this.signalStrength);
+  document.getElementById("signalStrength").value =
+    this.signalStrength.gsmSignalStrength;
+}
+
 
 </script>
+
+<progress id="signalStrength" max="31" value="0"></progress>
 
 </body>
 </html>
