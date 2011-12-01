@@ -70,12 +70,9 @@ let SocketListener = {
   },
 
   processData: function processData(array_buffer) {
-    debug("Received " + array_buffer);
-    let event = document.createEvent("Event");
-    event.initEvent("RILMessageEvent", true, true);
-    event.data = new Uint8Array(array_buffer);
-    debug("Dispatching event");
-    window.dispatchEvent(event);
+    debug("Received " + array_buffer + ", dispatching event.");
+    let data = new Uint8Array(array_buffer);
+    onRILMessage(data);
   },
 
   sendData: function sendData(array_buffer) {

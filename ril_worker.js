@@ -70,11 +70,6 @@ const PARCEL_SIZE_SIZE = UINT32_SIZE;
 const RESPONSE_TYPE_SOLICITED = 0;
 const RESPONSE_TYPE_UNSOLICITED = 1;
 
-if (!this.debug) {
-  // Debugging stub that goes nowhere.
-  this.debug = function debug() {};
-}
-
 /**
  * This object contains helpers buffering incoming data & deconstructing it
  * into parcels as well as buffering outgoing data & constructing parcels.
@@ -467,12 +462,6 @@ let Buf = {
     this.sendParcel();
   }
 };
-
-Buf.init();
-
-addEventListener("RILMessageEvent", function onRILMessageEvent(event) {
-  Buf.processIncoming(event.data);
-});
 
 
 /**
@@ -1156,6 +1145,24 @@ let Phone = {
 
 };
 
-onmessage = function onmessage(event) {
+
+/**
+ * Global stuff.
+ */
+
+if (!this.debug) {
+  // Debugging stub that goes nowhere.
+  this.debug = function debug() {};
+}
+
+// Initialize buffers. This is a separate function so that unit tests can
+// re-initialize the buffers at will.
+Buf.init();
+
+function onRILMessage(data) {
+  Buf.processIncoming(data);
+};
+
+function onmessage(event) {
   Phone.handleDOMMessage(event.data);
 };

@@ -58,13 +58,7 @@ const B2G_TEST_PARCEL = 12345678;
  */
 
 let onmessage;
-
-let _onRILMessageEvent;
-function addEventListener(type, cb) {
-  assert(type == "RILMessageEvent",
-         "Registering handler for unknown event type: " + type);
-  _onRILMessageEvent = cb;
-}
+let onRILMessage;
 
 function postRILMessage() {
 }
@@ -84,9 +78,7 @@ function debug(msg) {
  */
 let worker = {
   postRILMessage: function postRILMessage(message) {
-    let event = {type: "RILMessageEvent",
-                 data: message};
-    _onRILMessageEvent(event);
+    onRILMessage(data);
   },
   postMessage: function postMessage(message) {
     let event = {type: "message",
@@ -105,7 +97,7 @@ load("ril_worker.js");
 function AssertException(message) { this.message = message; }
 AssertException.prototype.toString = function () {
   return 'AssertException: ' + this.message;
-}
+};
 
 function assert(exp, message) {
   if (!exp) {
