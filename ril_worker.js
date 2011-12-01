@@ -661,7 +661,6 @@ RIL[RIL_REQUEST_ENTER_NETWORK_DEPERSONALIZATION] = null;
 RIL[RIL_REQUEST_GET_CURRENT_CALLS] = function RIL_REQUEST_GET_CURRENT_CALLS() {
   let calls = [];
   let calls_length = Buf.readUint32();
-  debug("No. of current calls: " + calls_length);
 
   for (let i = 0; i < calls_length; i++) {
     let dc = {
@@ -920,7 +919,13 @@ let Phone = {
   iccStatus: null,
 
   /**
-   * Handlers for messages from the RIL. They all begin with on*.
+   * Active calls
+   */
+  calls: null,
+
+  /**
+   * Handlers for messages from the RIL. They all begin with on* and are called
+   * from RIL object.
    */
 
   onRadioStateChanged: function onRadioStateChanged(newState) {
@@ -1080,7 +1085,8 @@ let Phone = {
 
   onSignalStrength: function onSignalStrength(strength) {
     debug("Signal strength " + JSON.stringify(strength));
-    //TODO
+    this.sendDOMMessage({type: "signalstrengthchange",
+                         signalStrength: strength});
   },
 
   onSendSMS: function onSendSMS(messageRef, ackPDU, errorCode) {
@@ -1089,7 +1095,16 @@ let Phone = {
 
 
   /**
-   * Outgoing requests to the RIL.
+   * Outgoing requests to the RIL. These can be triggered from the
+   * main thread via messages that look like this:
+   *
+   *   {type:  "methodName",
+   *    extra: "parameters",
+   *    go:    "here"}
+   *
+   * So if one of the following methods takes arguments, it takes only one,
+   * an object, which then contains all of the parameters as attributes.
+   * The "@param" documentation is to be interpreted accordingly.
    */
 
   /**
@@ -1109,8 +1124,8 @@ let Phone = {
    * @param number
    *        String containing the number to dial.
    */
-  dial: function dial(number) {
-    RIL.dial(number, 0, 0);
+  dial: function dial(options) {
+    RIL.dial(options.number, 0, 0);
   },
 
   /**
@@ -1121,8 +1136,8 @@ let Phone = {
    * @param message
    *        String containing the message text.
    */
-  sendSMS: function sendSMS(number, message) {
-    //TODO munge number and message into PDU format
+  sendSMS: function sendSMS(options) {
+    //TODO munge options.number and options.message into PDU format
     let smscPDU = "";
     let pdu = "";
     RIL.sendSMS(smscPDU, pdu);
