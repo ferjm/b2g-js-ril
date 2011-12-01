@@ -259,6 +259,9 @@ let Buf = {
 
   /**
    * Write incoming data to the circular buffer.
+   *
+   * @param incoming
+   *        Uint8Array containing the incoming data.
    */
   writeToIncoming: function writeToIncoming(incoming) {
     // We don't have to worry about the head catching the tail since
@@ -311,6 +314,9 @@ let Buf = {
 
   /**
    * Process incoming data.
+   *
+   * @param incoming
+   *        Uint8Array containing the incoming data.
    */
   processIncoming: function processIncoming(incoming) {
     if (DEBUG) {
@@ -412,6 +418,12 @@ let Buf = {
     RIL.handleParcel(request_type, length);
   },
 
+  /**
+   * Start a new outgoing parcel.
+   *
+   * @param type
+   *        Integer specifying the request type.
+   */
   newParcel: function newParcel(type) {
     // We're going to leave room for the parcel size at the beginning.
     this.outgoingIndex = PARCEL_SIZE_SIZE;
@@ -476,6 +488,9 @@ let RIL = {
   /**
    * Enter a PIN to unlock the ICC.
    * 
+   * @param pin
+   *        String containing the PIN.
+   *
    * Response will call Phone.onEnterSIMPIN().
    */
   enterICCPIN: function enterICCPIN(pin) {
