@@ -57,7 +57,7 @@
 
 "use strict";
 
-importScripts("ril_vars.js");
+importScripts("ril_consts.js");
 
 const DEBUG = true;
 
@@ -478,7 +478,7 @@ let RIL = {
    * Response will call Phone.onICCStatus().
    */
   getICCStatus: function getICCStatus() {
-    Buf.simpleRequest(RIL_REQUEST_GET_SIM_STATUS);
+    Buf.simpleRequest(REQUEST_GET_SIM_STATUS);
   },
 
   /**
@@ -490,7 +490,7 @@ let RIL = {
    * Response will call Phone.onEnterSIMPIN().
    */
   enterICCPIN: function enterICCPIN(pin) {
-    Buf.newParcel(RIL_REQUEST_ENTER_SIM_PIN);
+    Buf.newParcel(REQUEST_ENTER_SIM_PIN);
     Buf.writeUint32(1);
     Buf.writeString(pin);
     Buf.sendParcel();
@@ -503,7 +503,7 @@ let RIL = {
    *        Boolean indicating the desired power state.
    */
   setRadioPower: function setRadioPower(on) {
-    Buf.newParcel(RIL_REQUEST_RADIO_POWER);
+    Buf.newParcel(REQUEST_RADIO_POWER);
     Buf.writeUint32(1);
     Buf.writeUint32(on ? 1 : 0);
     Buf.sendParcel();
@@ -516,52 +516,52 @@ let RIL = {
    *        Boolean indicating whether the screen should be on or off.
    */
   setScreenState: function setScreenState(on) {
-    Buf.newParcel(RIL_REQUEST_SCREEN_STATE);
+    Buf.newParcel(REQUEST_SCREEN_STATE);
     Buf.writeUint32(1);
     Buf.writeUint32(on ? 1 : 0);
     Buf.sendParcel();
   },
 
   getRegistrationState: function getRegistrationState() {
-    Buf.simpleRequest(RIL_REQUEST_REGISTRATION_STATE);
+    Buf.simpleRequest(REQUEST_REGISTRATION_STATE);
   },
 
   getGPRSRegistrationState: function getGPRSRegistrationState() {
-    Buf.simpleRequest(RIL_REQUEST_GPRS_REGISTRATION_STATE);
+    Buf.simpleRequest(REQUEST_GPRS_REGISTRATION_STATE);
   },
 
   getOperator: function getOperator() {
-    Buf.simpleRequest(RIL_REQUEST_OPERATOR);
+    Buf.simpleRequest(REQUEST_OPERATOR);
   },
 
   getNetworkSelectionMode: function getNetworkSelectionMode() {
-    Buf.simpleRequest(RIL_REQUEST_QUERY_NETWORK_SELECTION_MODE);
+    Buf.simpleRequest(REQUEST_QUERY_NETWORK_SELECTION_MODE);
   },
 
   /**
    * Get current calls.
    */
   getCurrentCalls: function getCurrentCalls() {
-    Buf.simpleRequest(RIL_REQUEST_GET_CURRENT_CALLS);
+    Buf.simpleRequest(REQUEST_GET_CURRENT_CALLS);
   },
 
   /**
    * Get the signal strength.
    */
   getSignalStrength: function getSignalStrength() {
-    Buf.simpleRequest(RIL_REQUEST_SIGNAL_STRENGTH);
+    Buf.simpleRequest(REQUEST_SIGNAL_STRENGTH);
   },
 
   getIMEI: function getIMEI() {
-    Buf.simpleRequest(RIL_REQUEST_GET_IMEI);
+    Buf.simpleRequest(REQUEST_GET_IMEI);
   },
 
   getIMEISV: function getIMEISV() {
-    Buf.simpleRequest(RIL_REQUEST_GET_IMEISV);
+    Buf.simpleRequest(REQUEST_GET_IMEISV);
   },
 
   getDeviceIdentity: function getDeviceIdentity() {
-    Buf.simpleRequest(RIL_REQUEST_GET_DEVICE_IDENTITY);
+    Buf.simpleRequest(REQUEST_GET_DEVICE_IDENTITY);
   },
 
   /**
@@ -575,7 +575,7 @@ let RIL = {
    *        Integer doing something XXX TODO
    */
   dial: function dial(address, clirMode, uusInfo) {
-    let token = Buf.newParcel(RIL_REQUEST_DIAL);
+    let token = Buf.newParcel(REQUEST_DIAL);
     Buf.writeString(address);
     Buf.writeUint32(clirMode || 0);
     Buf.writeUint32(uusInfo || 0);
@@ -594,7 +594,7 @@ let RIL = {
    *        String containing the PDU in hex format.
    */
   sendSMS: function sendSMS(smscPDU, pdu) {
-    let token = Buf.newParcel(RIL_REQUEST_SEND_SMS);
+    let token = Buf.newParcel(REQUEST_SEND_SMS);
     //TODO we want to map token to the input values so that on the
     // response from the RIL device we know which SMS request was successful
     // or not. Maybe we should build that functionality into newParcel() and
@@ -620,7 +620,7 @@ let RIL = {
   }
 };
 
-RIL[RIL_REQUEST_GET_SIM_STATUS] = function RIL_REQUEST_GET_SIM_STATUS() {
+RIL[REQUEST_GET_SIM_STATUS] = function REQUEST_GET_SIM_STATUS() {
   let iccStatus = {
     cardState:                   Buf.readUint32(), // CARDSTATE_*
     universalPINState:           Buf.readUint32(), // PINSTATE_*
@@ -648,17 +648,17 @@ RIL[RIL_REQUEST_GET_SIM_STATUS] = function RIL_REQUEST_GET_SIM_STATUS() {
   }
   Phone.onICCStatus(iccStatus);
 };
-RIL[RIL_REQUEST_ENTER_SIM_PIN] = function RIL_REQUEST_ENTER_SIM_PIN() {
+RIL[REQUEST_ENTER_SIM_PIN] = function REQUEST_ENTER_SIM_PIN() {
   let response = Buf.readUint32List();
   Phone.onEnterICCPIN(response);
 };
-RIL[RIL_REQUEST_ENTER_SIM_PUK] = null;
-RIL[RIL_REQUEST_ENTER_SIM_PIN2] = null;
-RIL[RIL_REQUEST_ENTER_SIM_PUK2] = null;
-RIL[RIL_REQUEST_CHANGE_SIM_PIN] = null;
-RIL[RIL_REQUEST_CHANGE_SIM_PIN2] = null;
-RIL[RIL_REQUEST_ENTER_NETWORK_DEPERSONALIZATION] = null;
-RIL[RIL_REQUEST_GET_CURRENT_CALLS] = function RIL_REQUEST_GET_CURRENT_CALLS() {
+RIL[REQUEST_ENTER_SIM_PUK] = null;
+RIL[REQUEST_ENTER_SIM_PIN2] = null;
+RIL[REQUEST_ENTER_SIM_PUK2] = null;
+RIL[REQUEST_CHANGE_SIM_PIN] = null;
+RIL[REQUEST_CHANGE_SIM_PIN2] = null;
+RIL[REQUEST_ENTER_NETWORK_DEPERSONALIZATION] = null;
+RIL[REQUEST_GET_CURRENT_CALLS] = function REQUEST_GET_CURRENT_CALLS() {
   let calls = [];
   let calls_length = Buf.readUint32();
 
@@ -692,20 +692,20 @@ RIL[RIL_REQUEST_GET_CURRENT_CALLS] = function RIL_REQUEST_GET_CURRENT_CALLS() {
 
   Phone.onCurrentCalls(calls);
 };
-RIL[RIL_REQUEST_DIAL] = null;
-RIL[RIL_REQUEST_GET_IMSI] = function RIL_REQUEST_GET_IMSI(length) {
+RIL[REQUEST_DIAL] = null;
+RIL[REQUEST_GET_IMSI] = function REQUEST_GET_IMSI(length) {
   let imsi = Buf.readString(length);
   Phone.onIMSI(imsi);
 };
-RIL[RIL_REQUEST_HANGUP] = null;
-RIL[RIL_REQUEST_HANGUP_WAITING_OR_BACKGROUND] = null;
-RIL[RIL_REQUEST_HANGUP_FOREGROUND_RESUME_BACKGROUND] = null;
-RIL[RIL_REQUEST_SWITCH_WAITING_OR_HOLDING_AND_ACTIVE] = null;
-RIL[RIL_REQUEST_SWITCH_HOLDING_AND_ACTIVE] = null;
-RIL[RIL_REQUEST_CONFERENCE] = null;
-RIL[RIL_REQUEST_UDUB] = null;
-RIL[RIL_REQUEST_LAST_CALL_FAIL_CAUSE] = null;
-RIL[RIL_REQUEST_SIGNAL_STRENGTH] = function RIL_REQUEST_SIGNAL_STRENGTH() {
+RIL[REQUEST_HANGUP] = null;
+RIL[REQUEST_HANGUP_WAITING_OR_BACKGROUND] = null;
+RIL[REQUEST_HANGUP_FOREGROUND_RESUME_BACKGROUND] = null;
+RIL[REQUEST_SWITCH_WAITING_OR_HOLDING_AND_ACTIVE] = null;
+RIL[REQUEST_SWITCH_HOLDING_AND_ACTIVE] = null;
+RIL[REQUEST_CONFERENCE] = null;
+RIL[REQUEST_UDUB] = null;
+RIL[REQUEST_LAST_CALL_FAIL_CAUSE] = null;
+RIL[REQUEST_SIGNAL_STRENGTH] = function REQUEST_SIGNAL_STRENGTH() {
   let strength = {
     // Valid values are (0-31, 99) as defined in TS 27.007 8.5.
     gsmSignalStrength: Buf.readUint32(),
@@ -724,156 +724,156 @@ RIL[RIL_REQUEST_SIGNAL_STRENGTH] = function RIL_REQUEST_SIGNAL_STRENGTH() {
   };
   Phone.onSignalStrength(strength);
 };
-RIL[RIL_REQUEST_REGISTRATION_STATE] = function RIL_REQUEST_REGISTRATION_STATE(length) {
+RIL[REQUEST_REGISTRATION_STATE] = function REQUEST_REGISTRATION_STATE(length) {
   let state = Buf.readStringList();
   Phone.onRegistrationState(state);
 };
-RIL[RIL_REQUEST_GPRS_REGISTRATION_STATE] = function RIL_REQUEST_GPRS_REGISTRATION_STATE(length) {
+RIL[REQUEST_GPRS_REGISTRATION_STATE] = function REQUEST_GPRS_REGISTRATION_STATE(length) {
   let state = Buf.readStringList();
   Phone.onGPRSRegistrationState(state);
 };
-RIL[RIL_REQUEST_OPERATOR] = function RIL_REQUEST_OPERATOR(length) {
+RIL[REQUEST_OPERATOR] = function REQUEST_OPERATOR(length) {
   let operator = Buf.readStringList();
   Phone.onOperator(operator);
 };
-RIL[RIL_REQUEST_RADIO_POWER] = null;
-RIL[RIL_REQUEST_DTMF] = null;
-RIL[RIL_REQUEST_SEND_SMS] = function RIL_REQUEST_SEND_SMS() {
+RIL[REQUEST_RADIO_POWER] = null;
+RIL[REQUEST_DTMF] = null;
+RIL[REQUEST_SEND_SMS] = function REQUEST_SEND_SMS() {
   let messageRef = Buf.readUint32();
   let ackPDU = p.readString();
   let errorCode = p.readUint32();
   Phone.onSendSMS(messageRef, ackPDU, errorCode);
 };
-RIL[RIL_REQUEST_SEND_SMS_EXPECT_MORE] = null;
-RIL[RIL_REQUEST_SETUP_DATA_CALL] = null;
-RIL[RIL_REQUEST_SIM_IO] = null;
-RIL[RIL_REQUEST_SEND_USSD] = null;
-RIL[RIL_REQUEST_CANCEL_USSD] = null;
-RIL[RIL_REQUEST_GET_CLIR] = null;
-RIL[RIL_REQUEST_SET_CLIR] = null;
-RIL[RIL_REQUEST_QUERY_CALL_FORWARD_STATUS] = null;
-RIL[RIL_REQUEST_SET_CALL_FORWARD] = null;
-RIL[RIL_REQUEST_QUERY_CALL_WAITING] = null;
-RIL[RIL_REQUEST_SET_CALL_WAITING] = null;
-RIL[RIL_REQUEST_SMS_ACKNOWLEDGE] = null;
-RIL[RIL_REQUEST_GET_IMEI] = function RIL_REQUEST_GET_IMEI() {
+RIL[REQUEST_SEND_SMS_EXPECT_MORE] = null;
+RIL[REQUEST_SETUP_DATA_CALL] = null;
+RIL[REQUEST_SIM_IO] = null;
+RIL[REQUEST_SEND_USSD] = null;
+RIL[REQUEST_CANCEL_USSD] = null;
+RIL[REQUEST_GET_CLIR] = null;
+RIL[REQUEST_SET_CLIR] = null;
+RIL[REQUEST_QUERY_CALL_FORWARD_STATUS] = null;
+RIL[REQUEST_SET_CALL_FORWARD] = null;
+RIL[REQUEST_QUERY_CALL_WAITING] = null;
+RIL[REQUEST_SET_CALL_WAITING] = null;
+RIL[REQUEST_SMS_ACKNOWLEDGE] = null;
+RIL[REQUEST_GET_IMEI] = function REQUEST_GET_IMEI() {
   let imei = Buf.readString();
   Phone.onIMEI(imei);
 };
-RIL[RIL_REQUEST_GET_IMEISV] = function RIL_REQUEST_GET_IMEISV() {
+RIL[REQUEST_GET_IMEISV] = function REQUEST_GET_IMEISV() {
   let imeiSV = Buf.readString();
   Phone.onIMEISV(imeiSV);
 };
-RIL[RIL_REQUEST_ANSWER] = null;
-RIL[RIL_REQUEST_DEACTIVATE_DATA_CALL] = null;
-RIL[RIL_REQUEST_QUERY_FACILITY_LOCK] = null;
-RIL[RIL_REQUEST_SET_FACILITY_LOCK] = null;
-RIL[RIL_REQUEST_CHANGE_BARRING_PASSWORD] = null;
-RIL[RIL_REQUEST_QUERY_NETWORK_SELECTION_MODE] = function RIL_REQUEST_QUERY_NETWORK_SELECTION_MODE() {
+RIL[REQUEST_ANSWER] = null;
+RIL[REQUEST_DEACTIVATE_DATA_CALL] = null;
+RIL[REQUEST_QUERY_FACILITY_LOCK] = null;
+RIL[REQUEST_SET_FACILITY_LOCK] = null;
+RIL[REQUEST_CHANGE_BARRING_PASSWORD] = null;
+RIL[REQUEST_QUERY_NETWORK_SELECTION_MODE] = function REQUEST_QUERY_NETWORK_SELECTION_MODE() {
   let response = Buf.readUint32List();
   Phone.onNetworkSelectionMode(response);
 };
-RIL[RIL_REQUEST_SET_NETWORK_SELECTION_AUTOMATIC] = null;
-RIL[RIL_REQUEST_SET_NETWORK_SELECTION_MANUAL] = null;
-RIL[RIL_REQUEST_QUERY_AVAILABLE_NETWORKS] = null;
-RIL[RIL_REQUEST_DTMF_START] = null;
-RIL[RIL_REQUEST_DTMF_STOP] = null;
-RIL[RIL_REQUEST_BASEBAND_VERSION] = function RIL_REQUEST_BASEBAND_VERSION() {
+RIL[REQUEST_SET_NETWORK_SELECTION_AUTOMATIC] = null;
+RIL[REQUEST_SET_NETWORK_SELECTION_MANUAL] = null;
+RIL[REQUEST_QUERY_AVAILABLE_NETWORKS] = null;
+RIL[REQUEST_DTMF_START] = null;
+RIL[REQUEST_DTMF_STOP] = null;
+RIL[REQUEST_BASEBAND_VERSION] = function REQUEST_BASEBAND_VERSION() {
   let version = Buf.readString();
   Phone.onBasebandVersion(version);
 },
-RIL[RIL_REQUEST_SEPARATE_CONNECTION] = null;
-RIL[RIL_REQUEST_SET_MUTE] = null;
-RIL[RIL_REQUEST_GET_MUTE] = null;
-RIL[RIL_REQUEST_QUERY_CLIP] = null;
-RIL[RIL_REQUEST_LAST_DATA_CALL_FAIL_CAUSE] = null;
-RIL[RIL_REQUEST_DATA_CALL_LIST] = null;
-RIL[RIL_REQUEST_RESET_RADIO] = null;
-RIL[RIL_REQUEST_OEM_HOOK_RAW] = null;
-RIL[RIL_REQUEST_OEM_HOOK_STRINGS] = null;
-RIL[RIL_REQUEST_SCREEN_STATE] = null;
-RIL[RIL_REQUEST_SET_SUPP_SVC_NOTIFICATION] = null;
-RIL[RIL_REQUEST_WRITE_SMS_TO_SIM] = null;
-RIL[RIL_REQUEST_DELETE_SMS_ON_SIM] = null;
-RIL[RIL_REQUEST_SET_BAND_MODE] = null;
-RIL[RIL_REQUEST_QUERY_AVAILABLE_BAND_MODE] = null;
-RIL[RIL_REQUEST_STK_GET_PROFILE] = null;
-RIL[RIL_REQUEST_STK_SET_PROFILE] = null;
-RIL[RIL_REQUEST_STK_SEND_ENVELOPE_COMMAND] = null;
-RIL[RIL_REQUEST_STK_SEND_TERMINAL_RESPONSE] = null;
-RIL[RIL_REQUEST_STK_HANDLE_CALL_SETUP_REQUESTED_FROM_SIM] = null;
-RIL[RIL_REQUEST_EXPLICIT_CALL_TRANSFER] = null;
-RIL[RIL_REQUEST_SET_PREFERRED_NETWORK_TYPE] = null;
-RIL[RIL_REQUEST_GET_PREFERRED_NETWORK_TYPE] = null;
-RIL[RIL_REQUEST_GET_NEIGHBORING_CELL_IDS] = null;
-RIL[RIL_REQUEST_SET_LOCATION_UPDATES] = null;
-RIL[RIL_REQUEST_CDMA_SET_SUBSCRIPTION] = null;
-RIL[RIL_REQUEST_CDMA_SET_ROAMING_PREFERENCE] = null;
-RIL[RIL_REQUEST_CDMA_QUERY_ROAMING_PREFERENCE] = null;
-RIL[RIL_REQUEST_SET_TTY_MODE] = null;
-RIL[RIL_REQUEST_QUERY_TTY_MODE] = null;
-RIL[RIL_REQUEST_CDMA_SET_PREFERRED_VOICE_PRIVACY_MODE] = null;
-RIL[RIL_REQUEST_CDMA_QUERY_PREFERRED_VOICE_PRIVACY_MODE] = null;
-RIL[RIL_REQUEST_CDMA_FLASH] = null;
-RIL[RIL_REQUEST_CDMA_BURST_DTMF] = null;
-RIL[RIL_REQUEST_CDMA_VALIDATE_AND_WRITE_AKEY] = null;
-RIL[RIL_REQUEST_CDMA_SEND_SMS] = null;
-RIL[RIL_REQUEST_CDMA_SMS_ACKNOWLEDGE] = null;
-RIL[RIL_REQUEST_GSM_GET_BROADCAST_SMS_CONFIG] = null;
-RIL[RIL_REQUEST_GSM_SET_BROADCAST_SMS_CONFIG] = null;
-RIL[RIL_REQUEST_GSM_SMS_BROADCAST_ACTIVATION] = null;
-RIL[RIL_REQUEST_CDMA_GET_BROADCAST_SMS_CONFIG] = null;
-RIL[RIL_REQUEST_CDMA_SET_BROADCAST_SMS_CONFIG] = null;
-RIL[RIL_REQUEST_CDMA_SMS_BROADCAST_ACTIVATION] = null;
-RIL[RIL_REQUEST_CDMA_SUBSCRIPTION] = null;
-RIL[RIL_REQUEST_CDMA_WRITE_SMS_TO_RUIM] = null;
-RIL[RIL_REQUEST_CDMA_DELETE_SMS_ON_RUIM] = null;
-RIL[RIL_REQUEST_DEVICE_IDENTITY] = null;
-RIL[RIL_REQUEST_EXIT_EMERGENCY_CALLBACK_MODE] = null;
-RIL[RIL_REQUEST_GET_SMSC_ADDRESS] = null;
-RIL[RIL_REQUEST_SET_SMSC_ADDRESS] = null;
-RIL[RIL_REQUEST_REPORT_SMS_MEMORY_STATUS] = null;
-RIL[RIL_REQUEST_REPORT_STK_SERVICE_IS_RUNNING] = null;
-RIL[RIL_UNSOL_RESPONSE_RADIO_STATE_CHANGED] = function RIL_UNSOL_RESPONSE_RADIO_STATE_CHANGED() {
+RIL[REQUEST_SEPARATE_CONNECTION] = null;
+RIL[REQUEST_SET_MUTE] = null;
+RIL[REQUEST_GET_MUTE] = null;
+RIL[REQUEST_QUERY_CLIP] = null;
+RIL[REQUEST_LAST_DATA_CALL_FAIL_CAUSE] = null;
+RIL[REQUEST_DATA_CALL_LIST] = null;
+RIL[REQUEST_RESET_RADIO] = null;
+RIL[REQUEST_OEM_HOOK_RAW] = null;
+RIL[REQUEST_OEM_HOOK_STRINGS] = null;
+RIL[REQUEST_SCREEN_STATE] = null;
+RIL[REQUEST_SET_SUPP_SVC_NOTIFICATION] = null;
+RIL[REQUEST_WRITE_SMS_TO_SIM] = null;
+RIL[REQUEST_DELETE_SMS_ON_SIM] = null;
+RIL[REQUEST_SET_BAND_MODE] = null;
+RIL[REQUEST_QUERY_AVAILABLE_BAND_MODE] = null;
+RIL[REQUEST_STK_GET_PROFILE] = null;
+RIL[REQUEST_STK_SET_PROFILE] = null;
+RIL[REQUEST_STK_SEND_ENVELOPE_COMMAND] = null;
+RIL[REQUEST_STK_SEND_TERMINAL_RESPONSE] = null;
+RIL[REQUEST_STK_HANDLE_CALL_SETUP_REQUESTED_FROM_SIM] = null;
+RIL[REQUEST_EXPLICIT_CALL_TRANSFER] = null;
+RIL[REQUEST_SET_PREFERRED_NETWORK_TYPE] = null;
+RIL[REQUEST_GET_PREFERRED_NETWORK_TYPE] = null;
+RIL[REQUEST_GET_NEIGHBORING_CELL_IDS] = null;
+RIL[REQUEST_SET_LOCATION_UPDATES] = null;
+RIL[REQUEST_CDMA_SET_SUBSCRIPTION] = null;
+RIL[REQUEST_CDMA_SET_ROAMING_PREFERENCE] = null;
+RIL[REQUEST_CDMA_QUERY_ROAMING_PREFERENCE] = null;
+RIL[REQUEST_SET_TTY_MODE] = null;
+RIL[REQUEST_QUERY_TTY_MODE] = null;
+RIL[REQUEST_CDMA_SET_PREFERRED_VOICE_PRIVACY_MODE] = null;
+RIL[REQUEST_CDMA_QUERY_PREFERRED_VOICE_PRIVACY_MODE] = null;
+RIL[REQUEST_CDMA_FLASH] = null;
+RIL[REQUEST_CDMA_BURST_DTMF] = null;
+RIL[REQUEST_CDMA_VALIDATE_AND_WRITE_AKEY] = null;
+RIL[REQUEST_CDMA_SEND_SMS] = null;
+RIL[REQUEST_CDMA_SMS_ACKNOWLEDGE] = null;
+RIL[REQUEST_GSM_GET_BROADCAST_SMS_CONFIG] = null;
+RIL[REQUEST_GSM_SET_BROADCAST_SMS_CONFIG] = null;
+RIL[REQUEST_GSM_SMS_BROADCAST_ACTIVATION] = null;
+RIL[REQUEST_CDMA_GET_BROADCAST_SMS_CONFIG] = null;
+RIL[REQUEST_CDMA_SET_BROADCAST_SMS_CONFIG] = null;
+RIL[REQUEST_CDMA_SMS_BROADCAST_ACTIVATION] = null;
+RIL[REQUEST_CDMA_SUBSCRIPTION] = null;
+RIL[REQUEST_CDMA_WRITE_SMS_TO_RUIM] = null;
+RIL[REQUEST_CDMA_DELETE_SMS_ON_RUIM] = null;
+RIL[REQUEST_DEVICE_IDENTITY] = null;
+RIL[REQUEST_EXIT_EMERGENCY_CALLBACK_MODE] = null;
+RIL[REQUEST_GET_SMSC_ADDRESS] = null;
+RIL[REQUEST_SET_SMSC_ADDRESS] = null;
+RIL[REQUEST_REPORT_SMS_MEMORY_STATUS] = null;
+RIL[REQUEST_REPORT_STK_SERVICE_IS_RUNNING] = null;
+RIL[UNSOLICITED_RESPONSE_RADIO_STATE_CHANGED] = function UNSOLICITED_RESPONSE_RADIO_STATE_CHANGED() {
   let newState = Buf.readUint32();
   Phone.onRadioStateChanged(newState);
 };
-RIL[RIL_UNSOL_RESPONSE_CALL_STATE_CHANGED] = function RIL_UNSOL_RESPONSE_CALL_STATE_CHANGED() {
+RIL[UNSOLICITED_RESPONSE_CALL_STATE_CHANGED] = function UNSOLICITED_RESPONSE_CALL_STATE_CHANGED() {
   Phone.onCallStateChanged();
 };
-RIL[RIL_UNSOL_RESPONSE_NETWORK_STATE_CHANGED] = function RIL_UNSOL_RESPONSE_NETWORK_STATE_CHANGED() {
+RIL[UNSOLICITED_RESPONSE_NETWORK_STATE_CHANGED] = function UNSOLICITED_RESPONSE_NETWORK_STATE_CHANGED() {
   Phone.onNetworkStateChanged();
 };
-RIL[RIL_UNSOL_RESPONSE_NEW_SMS] = null;
-RIL[RIL_UNSOL_RESPONSE_NEW_SMS_STATUS_REPORT] = null;
-RIL[RIL_UNSOL_RESPONSE_NEW_SMS_ON_SIM] = null;
-RIL[RIL_UNSOL_ON_USSD] = null;
-RIL[RIL_UNSOL_ON_USSD_REQUEST] = null;
-RIL[RIL_UNSOL_NITZ_TIME_RECEIVED] = null;
-RIL[RIL_UNSOL_SIGNAL_STRENGTH] = function RIL_UNSOL_SIGNAL_STRENGTH() {
-  this[RIL_REQUEST_SIGNAL_STRENGTH]();
+RIL[UNSOLICITED_RESPONSE_NEW_SMS] = null;
+RIL[UNSOLICITED_RESPONSE_NEW_SMS_STATUS_REPORT] = null;
+RIL[UNSOLICITED_RESPONSE_NEW_SMS_ON_SIM] = null;
+RIL[UNSOLICITED_ON_USSD] = null;
+RIL[UNSOLICITED_ON_USSD_REQUEST] = null;
+RIL[UNSOLICITED_NITZ_TIME_RECEIVED] = null;
+RIL[UNSOLICITED_SIGNAL_STRENGTH] = function UNSOLICITED_SIGNAL_STRENGTH() {
+  this[REQUEST_SIGNAL_STRENGTH]();
 };
-RIL[RIL_UNSOL_DATA_CALL_LIST_CHANGED] = null;
-RIL[RIL_UNSOL_SUPP_SVC_NOTIFICATION] = null;
-RIL[RIL_UNSOL_STK_SESSION_END] = null;
-RIL[RIL_UNSOL_STK_PROACTIVE_COMMAND] = null;
-RIL[RIL_UNSOL_STK_EVENT_NOTIFY] = null;
-RIL[RIL_UNSOL_STK_CALL_SETUP] = null;
-RIL[RIL_UNSOL_SIM_SMS_STORAGE_FULL] = null;
-RIL[RIL_UNSOL_SIM_REFRESH] = null;
-RIL[RIL_UNSOL_CALL_RING] = null;
-RIL[RIL_UNSOL_RESPONSE_SIM_STATUS_CHANGED] = null;
-RIL[RIL_UNSOL_RESPONSE_CDMA_NEW_SMS] = null;
-RIL[RIL_UNSOL_RESPONSE_NEW_BROADCAST_SMS] = null;
-RIL[RIL_UNSOL_CDMA_RUIM_SMS_STORAGE_FULL] = null;
-RIL[RIL_UNSOL_RESTRICTED_STATE_CHANGED] = null;
-RIL[RIL_UNSOL_ENTER_EMERGENCY_CALLBACK_MODE] = null;
-RIL[RIL_UNSOL_CDMA_CALL_WAITING] = null;
-RIL[RIL_UNSOL_CDMA_OTA_PROVISION_STATUS] = null;
-RIL[RIL_UNSOL_CDMA_INFO_REC] = null;
-RIL[RIL_UNSOL_OEM_HOOK_RAW] = null;
-RIL[RIL_UNSOL_RINGBACK_TONE] = null;
-RIL[RIL_UNSOL_RESEND_INCALL_MUTE] = null;
+RIL[UNSOLICITED_DATA_CALL_LIST_CHANGED] = null;
+RIL[UNSOLICITED_SUPP_SVC_NOTIFICATION] = null;
+RIL[UNSOLICITED_STK_SESSION_END] = null;
+RIL[UNSOLICITED_STK_PROACTIVE_COMMAND] = null;
+RIL[UNSOLICITED_STK_EVENT_NOTIFY] = null;
+RIL[UNSOLICITED_STK_CALL_SETUP] = null;
+RIL[UNSOLICITED_SIM_SMS_STORAGE_FULL] = null;
+RIL[UNSOLICITED_SIM_REFRESH] = null;
+RIL[UNSOLICITED_CALL_RING] = null;
+RIL[UNSOLICITED_RESPONSE_SIM_STATUS_CHANGED] = null;
+RIL[UNSOLICITED_RESPONSE_CDMA_NEW_SMS] = null;
+RIL[UNSOLICITED_RESPONSE_NEW_BROADCAST_SMS] = null;
+RIL[UNSOLICITED_CDMA_RUIM_SMS_STORAGE_FULL] = null;
+RIL[UNSOLICITED_RESTRICTED_STATE_CHANGED] = null;
+RIL[UNSOLICITED_ENTER_EMERGENCY_CALLBACK_MODE] = null;
+RIL[UNSOLICITED_CDMA_CALL_WAITING] = null;
+RIL[UNSOLICITED_CDMA_OTA_PROVISION_STATUS] = null;
+RIL[UNSOLICITED_CDMA_INFO_REC] = null;
+RIL[UNSOLICITED_OEM_HOOK_RAW] = null;
+RIL[UNSOLICITED_RINGBACK_TONE] = null;
+RIL[UNSOLICITED_RESEND_INCALL_MUTE] = null;
 
 
 /**
@@ -887,9 +887,9 @@ let Phone = {
   // communication with the UI thread.
 
   /**
-   * One of the RADIOSTATE_* constants.
+   * One of the RADIO_STATE_* constants.
    */
-  radioState: RADIOSTATE_UNAVAILABLE,
+  radioState: RADIO_STATE_UNAVAILABLE,
 
   /**
    * Strings
@@ -935,20 +935,20 @@ let Phone = {
       return;
     }
 
-    let gsm = newState == RADIOSTATE_SIM_NOT_READY        ||
-              newState == RADIOSTATE_SIM_LOCKED_OR_ABSENT ||
-              newState == RADIOSTATE_SIM_READY;
-    let cdma = newState == RADIOSTATE_RUIM_NOT_READY       ||
-               newState == RADIOSTATE_RUIM_READY            ||
-               newState == RADIOSTATE_RUIM_LOCKED_OR_ABSENT ||
-               newState == RADIOSTATE_NV_NOT_READY          ||
-               newState == RADIOSTATE_NV_READY;
+    let gsm = newState == RADIO_STATE_SIM_NOT_READY        ||
+              newState == RADIO_STATE_SIM_LOCKED_OR_ABSENT ||
+              newState == RADIO_STATE_SIM_READY;
+    let cdma = newState == RADIO_STATE_RUIM_NOT_READY       ||
+               newState == RADIO_STATE_RUIM_READY            ||
+               newState == RADIO_STATE_RUIM_LOCKED_OR_ABSENT ||
+               newState == RADIO_STATE_NV_NOT_READY          ||
+               newState == RADIO_STATE_NV_READY;
 
     // Figure out state transitions and send out more RIL requests as necessary
     // as well as events to the main thread.
 
-    if (this.radioState == RADIOSTATE_UNAVAILABLE &&
-        newState != RADIOSTATE_UNAVAILABLE) {
+    if (this.radioState == RADIO_STATE_UNAVAILABLE &&
+        newState != RADIO_STATE_UNAVAILABLE) {
       // The radio became available, let's get its info.
       if (gsm) {
         RIL.getIMEI();
@@ -957,22 +957,22 @@ let Phone = {
       if (cdma) {
         RIL.getDeviceIdentity();
       }
-      Buf.simpleRequest(RIL_REQUEST_BASEBAND_VERSION);
+      Buf.simpleRequest(REQUEST_BASEBAND_VERSION);
       RIL.setScreenState(true);
       this.sendDOMMessage({
         type: "radiostatechange",
-        radioState: (newState == RADIOSTATE_OFF) ? "off" : "ready"
+        radioState: (newState == RADIO_STATE_OFF) ? "off" : "ready"
       });
 
       //XXX TODO For now, just turn the radio on if it's off. for the real
       // deal we probably want to do the opposite: start with a known state
       // when we boot up and let the UI layer control the radio power.
-      if (newState == RADIOSTATE_OFF) {
+      if (newState == RADIO_STATE_OFF) {
         RIL.setRadioPower(true);
       }
     }
 
-    if (newState == RADIOSTATE_UNAVAILABLE) {
+    if (newState == RADIO_STATE_UNAVAILABLE) {
       // The radio is no longer available, we need to deal with any
       // remaining pending requests.
       //TODO do that
@@ -981,9 +981,9 @@ let Phone = {
                            radioState: "unavailable"});
     }
 
-    if (newState == RADIOSTATE_SIM_READY  ||
-        newState == RADIOSTATE_RUIM_READY ||
-        newState == RADIOSTATE_NV_READY) {
+    if (newState == RADIO_STATE_SIM_READY  ||
+        newState == RADIO_STATE_RUIM_READY ||
+        newState == RADIO_STATE_NV_READY) {
       // The ICC card has become available. Get all the things.
       RIL.getICCStatus();
       this.requestNetworkInfo();
@@ -991,17 +991,17 @@ let Phone = {
       this.sendDOMMessage({type: "cardstatechange",
                            cardState: "ready"});
     }
-    if (newState == RADIOSTATE_SIM_LOCKED_OR_ABSENT  ||
-        newState == RADIOSTATE_RUIM_LOCKED_OR_ABSENT) {
+    if (newState == RADIO_STATE_SIM_LOCKED_OR_ABSENT  ||
+        newState == RADIO_STATE_RUIM_LOCKED_OR_ABSENT) {
       RIL.getICCStatus();
       this.sendDOMMessage({type: "cardstatechange",
                            cardState: "unavailable"});
     }
 
-    let wasOn = this.radioState != RADIOSTATE_OFF &&
-                this.radioState != RADIOSTATE_UNAVAILABLE;
-    let isOn = newState != RADIOSTATE_OFF &&
-               newState != RADIOSTATE_UNAVAILABLE;
+    let wasOn = this.radioState != RADIO_STATE_OFF &&
+                this.radioState != RADIO_STATE_UNAVAILABLE;
+    let isOn = newState != RADIO_STATE_OFF &&
+               newState != RADIO_STATE_UNAVAILABLE;
     if (!wasOn && isOn) {
       //TODO
     }
@@ -1037,7 +1037,7 @@ let Phone = {
   },
 
   onEnterICCPIN: function onEnterICCPIN(response) {
-    debug("RIL_REQUEST_ENTER_SIM_PIN returned " + response);
+    debug("REQUEST_ENTER_SIM_PIN returned " + response);
     //TODO
   },
 
@@ -1177,7 +1177,9 @@ let Phone = {
 
 if (!this.debug) {
   // Debugging stub that goes nowhere.
-  this.debug = function debug() {};
+  this.debug = function debug(message) {
+    dump("RIL Worker: " + message + "\n");
+  };
 }
 
 // Initialize buffers. This is a separate function so that unit tests can
@@ -1188,6 +1190,10 @@ function onRILMessage(data) {
   Buf.processIncoming(data);
 };
 
-function onmessage(event) {
+onmessage = function onmessage(event) {
   Phone.handleDOMMessage(event.data);
+};
+
+onerror = function onerror(event) {
+  debug("RIL Worker error" + event.message + "\n");
 };
