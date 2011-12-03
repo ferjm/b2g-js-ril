@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+</head>
+<body onload="init();" onunload="cleanup();">
+<div>
+  Host/Port:
+  <input id="host" type="text" value="localhost">
+  <input id="port" type="text" value="5037">
+  <button id="connect" onclick="connect(); return false;">Connect</button>
+</div>
+
+<p id="status"></p>
+
+<script type="application/javascript;version=1.8" src="adb.js"></script>
+<script type="application/javascript;version=1.8">
+
+function init() {
+  window.setTimeout(function () {
+    Cu.import("resource://gre/modules/Services.jsm");
+    let chromeWin = Services.wm.getMostRecentWindow("navigator:browser");
+    if (!chromeWin.HUDConsoleUI.getOpenHUD()) {
+      chromeWin.HUDConsoleUI.toggleHUD();
+    }
+
+    connect();
+  }, 100);
+}
+
+function connect() {
+  if (ADB.connected) {
+    ADB.stop();
+    document.getElementById("connect").textContent = "Connect";
+  } else {
+    let host = document.getElementById("host").value;
+    let port = document.getElementById("port").value;
+    ADB.listen(host, port, onConnectionError);
+    document.getElementById("status").textContent = "";
+    document.getElementById("connect").textContent = "Disconnect";
+  }
+}
+
+function onConnectionError(error) {
+  document.getElementById("status").textContent = "Connection failed: " + error.message + " " + error.result;
+  document.getElementById("connect").textContent = "Connect";
+}
+
+function cleanup() {
+  if (ADB.connected) {
+    ADB.stop();
+  }
+}
+
+function debug(msg) {
+  console.log(msg);
+}
+</script>
+
+</body>
+</html>
