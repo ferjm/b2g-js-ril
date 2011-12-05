@@ -53,6 +53,10 @@
  * 
  * - RILMessageEvent -> Buf -> RIL -> Phone -> postMessage()
  * - "message" event -> Phone -> RIL -> Buf -> postRILMessage()
+ *
+ * Note: The code below is purposely lean on abstractions to be as lean in
+ * terms of object allocations. As a result, it may look more like C than
+ * JavaScript, and that's intended.
  */
 
 "use strict";
@@ -96,8 +100,6 @@ let Buf = {
     this.outgoingBytes = new Uint8Array(this.outgoingBuffer);
 
     // Track where incoming data is read from and written to.
-    //XXX I think we could fold this into one index just like we do it
-    // with outgoingIndex.
     this.incomingWriteIndex = 0;
     this.incomingReadIndex = 0;
 
@@ -195,7 +197,7 @@ let Buf = {
 
   writeUint8: function writeUint8(value) {
     this.outgoingBytes[this.outgoingIndex] = value;
-    this.outgoingIndex += 1;
+    this.outgoingIndex++;
   },
 
   writeUint16: function writeUint16(value) {
@@ -332,18 +334,22 @@ let Buf = {
       if (!this.currentParcelSize) {
         // We're expecting a new parcel.
         if (this.readIncoming < PARCEL_SIZE_SIZE) {
-          // We're don't know how big the next parcel is going to be, need more
+          // We don't know how big the next parcel is going to be, need more
           // data.
+          if (DEBUG) debug("Next parcel size unknown, going to sleep.");
           return;
         }
         this.currentParcelSize = this.readParcelSize();
-        if (DEBUG) debug("New parcel, size " + this.currentParcelSize);
+        if (DEBUG) debug("New incoming parcel of size " +
+                         this.currentParcelSize);
         // The size itself is not included in the size.
         this.readIncoming -= PARCEL_SIZE_SIZE;
       }
 
       if (this.readIncoming < this.currentParcelSize) {
         // We haven't read enough yet in order to be able to process a parcel.
+        if (DEBUG) debug("Read " + this.readIncoming + ", but parcel size is "
+                         + this.currentParcelSize + ". Going to sleep.");
         return;
       }
 
@@ -362,11 +368,10 @@ let Buf = {
           parcel = Array.slice(this.incomingBytes.subarray(
             this.incomingReadIndex, expectedAfterIndex));
         }
-        if (DEBUG) {
-          debug("Parcel (size " + this.currentParcelSize + "): " + parcel);
-        }
+        debug("Parcel (size " + this.currentParcelSize + "): " + parcel);
       }
 
+      if (DEBUG) debug("We have at least one complete parcel.");
       try {
         this.processParcel();
       } catch (ex) {
@@ -433,7 +438,7 @@ let Buf = {
     let token = this.token;
     this.writeUint32(token);
     this.tokenRequestMap[token] = type;
-    this.token += 1;
+    this.token++;
     return token;
   },
 
@@ -448,9 +453,8 @@ let Buf = {
     let parcelSize = this.outgoingIndex - PARCEL_SIZE_SIZE;
     this.writeParcelSize(parcelSize);
 
-    //TODO XXX this assumes that postRILMessage can eat a ArrayBufferView!
-    // It also assumes that it will make a copy of the ArrayBufferView right
-    // away.
+    // This assumes that postRILMessage will make a copy of the ArrayBufferView
+    // right away!
     let parcel = this.outgoingBytes.subarray(0, this.outgoingIndex);
     debug("Outgoing parcel: " + Array.slice(parcel));
     postRILMessage(parcel);
