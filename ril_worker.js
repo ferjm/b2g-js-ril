@@ -88,9 +88,8 @@ const RESPONSE_TYPE_UNSOLICITED = 1;
  */
 let Buf = {
 
-  //TODO review these values
-  INCOMING_BUFFER_LENGTH: 4096,
-  OUTGOING_BUFFER_LENGTH: 4096,
+  INCOMING_BUFFER_LENGTH: 1024,
+  OUTGOING_BUFFER_LENGTH: 1024,
 
   init: function init() {
     this.incomingBuffer = new ArrayBuffer(this.INCOMING_BUFFER_LENGTH);
@@ -121,6 +120,68 @@ let Buf = {
     this.tokenRequestMap = {};
   },
 
+  /**
+   * Grow the incoming buffer.
+   *
+   * @param min_size
+   *        Minimum new size. The actual new size will be the the smallest
+   *        power of 2 that's larger than this number.
+   */
+  growIncomingBuffer: function growIncomingBuffer(min_size) {
+    if (DEBUG) {
+      debug("Current buffer of " + this.INCOMING_BUFFER_LENGTH +
+            " can't handle incoming " + min_size + " bytes.");
+    }
+    let oldBytes = this.incomingBytes;
+    this.INCOMING_BUFFER_LENGTH =
+      2 << Math.floor(Math.log(min_size)/Math.log(2));
+    if (DEBUG) debug("New incoming buffer size: " + this.INCOMING_BUFFER_LENGTH);
+    this.incomingBuffer = new ArrayBuffer(this.INCOMING_BUFFER_LENGTH);
+    this.incomingBytes = new Uint8Array(this.incomingBuffer);
+    if (this.incomingReadIndex <= this.incomingWriteIndex) {
+      // Read and write index are in natural order, so we can just copy
+      // the old buffer over to the bigger one without having to worry
+      // about the indexes.
+      this.incomingBytes.set(oldBytes, 0);
+    } else {
+      // The write index has wrapped around but the read index hasn't yet.
+      // Write whatever the read index has left to read until it would
+      // circle around to the beginning of the new buffer, and the rest
+      // behind that.
+      let head = oldBytes.subarray(this.incomingReadIndex);
+      let tail = oldBytes.subarray(0, this.incomingReadIndex);
+      this.incomingBytes.set(head, 0);
+      this.incomingBytes.set(tail, head.length);
+      this.incomingReadIndex = 0;
+      this.incomingWriteIndex += head.length;
+    }
+    if (DEBUG) {
+      debug("New incoming buffer size is " + this.INCOMING_BUFFER_LENGTH);
+    }
+  },
+
+  /**
+   * Grow the outgoing buffer.
+   *
+   * @param min_size
+   *        Minimum new size. The actual new size will be the the smallest
+   *        power of 2 that's larger than this number.
+   */
+  growOutgoingBuffer: function growOutgoingBuffer(min_size) {
+    if (DEBUG) {
+      debug("Current buffer of " + this.OUTGOING_BUFFER_LENGTH +
+            " is too small.");
+    }
+    let oldBytes = this.outgoingBytes;
+    this.OUTGOING_BUFFER_LENGTH =
+      2 << Math.floor(Math.log(min_size)/Math.log(2));
+    this.outgoingBuffer = new ArrayBuffer(this.OUTGOING_BUFFER_LENGTH);
+    this.outgoingBytes = new Uint8Array(this.outgoingBuffer);
+    this.outgoingBytes.set(oldBytes, 0);
+    if (DEBUG) {
+      debug("New outgoing buffer size is " + this.OUTGOING_BUFFER_LENGTH);
+    }
+  },
 
   /**
    * Functions for reading data from the incoming buffer.
@@ -167,7 +228,7 @@ let Buf = {
     // It's insane, I know.
     let delimiter = this.readUint16();
     if (!(string_len & 1)) {
-      delimiter += this.readUint16();
+      delimiter |= this.readUint16();
     }
     if (DEBUG) {
       if (delimiter != 0) {
@@ -196,6 +257,9 @@ let Buf = {
    */
 
   writeUint8: function writeUint8(value) {
+    if (this.outgoingIndex >= this.OUTGOING_BUFFER_LENGTH) {
+      this.growOutgoingBuffer(this.outgoingIndex + 1);
+    }
     this.outgoingBytes[this.outgoingIndex] = value;
     this.outgoingIndex++;
   },
@@ -269,36 +333,7 @@ let Buf = {
     // new data to the buffer. So the only edge case we need to handle
     // is when the incoming data is larger than the buffer size.
     if (incoming.length > this.INCOMING_BUFFER_LENGTH) {
-      if (DEBUG) {
-        debug("Current buffer of " + this.INCOMING_BUFFER_LENGTH +
-              " can't handle incoming " + incoming.length + " bytes ");
-      }
-      let oldBytes = this.incomingBytes;
-      while (this.INCOMING_BUFFER_LENGTH < incoming.length) {
-        this.INCOMING_BUFFER_LENGTH *= 2;
-      }
-      this.incomingBuffer = new ArrayBuffer(this.INCOMING_BUFFER_LENGTH);
-      this.incomingBytes = new Uint8Array(this.incomingBuffer);
-      if (this.incomingReadIndex <= this.incomingWriteIndex) {
-        // Read and write index are in natural order, so we can just copy
-        // the old buffer over to the bigger one without having to worry
-        // about the indexes.
-        this.incomingBytes.set(oldBytes, 0);
-      } else {
-        // The write index has wrapped around but the read index hasn't yet.
-        // Write whatever the read index has left to read until it would
-        // circle around to the beginning of the new buffer, and the rest
-        // behind that.
-        let head = oldBytes.subarray(this.incomingReadIndex);
-        let tail = oldBytes.subarray(0, this.incomingReadIndex);
-        this.incomingBytes.set(head, 0);
-        this.incomingBytes.set(tail, head.length);
-        this.incomingReadIndex = 0;
-        this.incomingWriteIndex += head.length;
-      }
-      if (DEBUG) {
-        debug("New incoming buffer size is " + this.INCOMING_BUFFER_LENGTH);
-      }
+      this.growIncomingBuffer(incoming.length);
     }
 
     // We can let the typed arrays do the copying if the incoming data won't
