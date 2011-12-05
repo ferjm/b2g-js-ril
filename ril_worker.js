@@ -166,7 +166,7 @@ let Buf = {
     // if the string length is even, the delimiter is two characters wide.
     // It's insane, I know.
     let delimiter = this.readUint16();
-    if (!(string_len % 2)) {
+    if (!(string_len & 1)) {
       delimiter += this.readUint16();
     }
     if (DEBUG) {
@@ -225,7 +225,7 @@ let Buf = {
     // if the string length is even, the delimiter is two characters wide.
     // It's insane, I know.
     this.writeUint16(0);
-    if (!(value.length % 2)) {
+    if (!(value.length & 1)) {
       this.writeUint16(0);
     }
   },
