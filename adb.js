@@ -18,22 +18,33 @@ const BinaryOutputStream = Components.Constructor(
 
 
 
+const ADB_DEFAULT_HOST = "127.0.0.1";
+const ADB_DEAFULT_PORT = "5037";
+const ADB_REQUEST_LENGTH_LEN = 4;
+const ADB_RESPONSE_STATUS_LEN = 4;
+const ADB_PACKET_LENGTH_LEN = 4;
+const ADB_STATUS_OKAY = "OKAY";
+const ADB_STATUS_FAIL = "FAIL";
 
 
-const ADB_REQUEST_PREFIX_LEN = 4;
-const ADB_RESPONSE_PREFIX_LEN = 4;
+function ADBRequest(host, port) {
+  this.host = host;
+  this.port = port;
+}
+ADBRequest.prototype = {
 
-const isUnsolicited = /[0-9abcdef]{4}/;
+  host: null,
+  port: null,
+  socket: null,
 
+  inputStream: null,
+  binaryInputStream: null,
+  outputStream: null,
+  binaryOUtputStream: null,
 
-
-let ADB = {
-
-  connected: false,
-
-  listen: function listen(host, port, errorCallback) {
-    this.errorCallback = errorCallback;
-    this.socket = gTransportService.createTransport(null, 0, host, port, null);
+  connect: function connect() {
+    this.socket = gTransportService.createTransport(null, 0, this.host,
+                                                    this.port, null);
     this.inputStream = this.socket.openInputStream(0, 0, 0);
     this.binaryInputStream = BinaryInputStream(this.inputStream);
     this.outputStream = this.socket.openOutputStream(0, 0, 0);
@@ -43,11 +54,22 @@ let ADB = {
     debug("Connected to " + host + ":" + port);
   },
 
-  stop: function stop() {
-    debug("Stopping socket");
+  disconnect: function disconnect() {
     this.connected = false;
     this.socket.close(0);
+    this.socket = null;
+    this.inputStream = null;
+    this.binaryInputStream = null;
+    this.outputStream = null;
+    this.binaryOutputStream = null;
   },
+
+  transmit: function transmit(data) {
+    debug("Transmitting " + data);
+    this.binaryOutputStream.writeBytes(data, data.length);
+    this.binaryOutputStream.flush();
+  },
+
 
   /**
    * nsIInputStreamCallback
@@ -65,8 +87,8 @@ let ADB = {
         }
         data = this.binaryInputStream.readBytes(length);
       } catch(ex) {
-        this.stop();
-        this.errorCallback(ex);
+        this.disconnect();
+        this.handleReadError(ex);
         return;
       }
       this.processData(data);
@@ -74,71 +96,137 @@ let ADB = {
     this.inputStream.asyncWait(this, 0, 0, Services.tm.currentThread);
   },
 
-  requestCbs: [],
+  handleReadError: function handleReadError(error) {
+    debug("Error");
+    debug(error);
+    //TODO dispatch to either oncomplete or onerror
+  },
+
+  /**
+   * Incoming read buffer.
+   */
   buffer: "",
-  response: null,
+
+  /**
+   * Transient attributes.
+   */
+  responseStatus: null,
+  packetLength: null,
+  responseDispatched: false,
 
   processData: function processData(data) {
     debug("Received " + data.length + " bytes: " + JSON.stringify(data));
     this.buffer += data;
     while (true) {
-      let response = this.response;
-      if (response == null) {
-        if (this.buffer.length < 2 * ADB_RESPONSE_PREFIX_LEN) {
+      // If we don't know the response status yet, try to read it from
+      // the buffer. This is the very first thing that gets sent back
+      // and only once per connection.
+      if (this.responseStatus == null) {
+        if (this.buffer.length < ADB_RESPONSE_STATUS_LEN) {
           return;
         }
-        response = this.response = {};
-        let status_or_length = this.buffer.slice(0, ADB_RESPONSE_PREFIX_LEN);
-        response.solicited = !isUnsolicited.test(status_or_length);
-        if (response.solicited) {
-          response.status = status_or_length;
-          let lengthstr = this.buffer.slice(ADB_RESPONSE_PREFIX_LEN,
-                                            2 * ADB_RESPONSE_PREFIX_LEN);
-          response.length = parseInt(lengthstr, 16);
-          this.buffer = this.buffer.slice(2 * ADB_RESPONSE_PREFIX_LEN);         
-        } else {
-          response.length = parseInt(status_or_length, 16);
-          this.buffer = this.buffer.slice(ADB_RESPONSE_PREFIX_LEN);
-        }
+        this.responseStatus = this.buffer.slice(0, ADB_RESPONSE_STATUS_LEN);
+        this.buffer = this.buffer.slice(ADB_RESPONSE_STATUS_LEN);
       }
 
-      if (this.buffer.length < response.elngth) {
+      // If we don't know the current packet's length yet, try to read
+      // it from the buffer. This gets reset to null every time we have
+      // handled a packet.
+      if (this.packetLength == null) {
+        if (this.buffer.length < ADB_RESPONSE_LENGTH_LEN) {
+          return;
+        }
+        let lengthstr = this.buffer.slice(0, ADB_RESPONSE_LENGTH_LEN);
+        this.packetLength = parseInt(lengthstr, 16);
+        this.buffer = this.buffer.slice(ADB_RESPONSE_LENGTH_LEN);
+      }
+
+      // Bail if we haven't received the whole packet yet.
+      if (this.buffer.length < this.packetLength) {
         return;
       }
 
-      response.data = this.buffer.slice(0, this.response.length);
-      this.buffer = this.buffer.slice(response.length);
-      this.response = null;
-
-      if (response.solicited) {
-        let callback = this.requestCbs.shift();
-        callback(response);
-      } else {
-        this.handleUnsolicited(response);
+      let data = this.buffer.slice(0, this.packetLength);
+      this.buffer = this.buffer.slice(this.packetLength);
+      try {
+        if (this.responseDispatched) {
+          this.onincremental(data);
+        } else {
+          this.responseDispatched = true;
+          this.onresponse(this.responseStatus, data);
+        }
+      } catch (ex) {
+        debug("Exception while calling event handlers:");
+        debug(ex);
       }
+      this.packetLength = null;
     }
   },
 
-  sendData: function sendData(data) {
-    debug("Sending " + data);
-    this.binaryOutputStream.writeBytes(data, data.length);
-    this.binaryOutputStream.flush();
-  },
+  /**
+   * Public API
+   */
 
-  sendRequest: function sendRequest(request, callback) {
-    // Create an ASCII string preceeded by four hex digits. The opening "####"
-    // is the length of the rest of the string, encoded as ASCII hex.
+  /**
+   * Indicate whether the socket is still open.
+   */
+  connected: false,
+
+  /**
+   * One of "OKAY", "FAIL", etc.
+   */
+  status: null,
+
+  /**
+   * Send the request.
+   * 
+   * @param request
+   *        String specifying the request
+   */
+  send: function send(request) {
+    this.connect();
     let length = ("000" + request.length.toString(16))
-                 .slice(-ADB_REQUEST_PREFIX_LEN);
+                 .slice(-ADB_REQUEST_LENGTH_LEN);
     request = length + request;
-    this.sendData(request);
-    this.requestCbs.push(callback);
+    this.transmit(request);
   },
 
-  handleUnsolicited: function handleUnsolicited(response) {
-    debug("Unsolicited:");
-    debug(response);
-    //TODO
+  onresponse: function onresponse(status, data) {
+  },
+
+  onincremental: function onincremental(data) {
+  },
+
+  oncomplete: function oncomplete() {
+  },
+
+  onerror: function onerror(error) {
+  },
+
+};
+
+
+function ADBClient(host, port) {
+  if (!host) {
+    this.host = ADB_DEFAULT_HOST;
+  }
+  if (!port) {
+    this.port = ADB_DEFAULT_PORT;
+  }
+}
+ADBClient.prototype = {
+
+  newRequest: function newRequest() {
+    return new ADBRequest(this.host, this.port);
+  },
+
+  simpleRequest: function simpleRequest(request, callback) {
+    let request = this.newRequest();
+    request.onresponse = function onresponse(status, response) {
+      request.disconnect();
+      callback(status, response);
+    };
+    return request;
   },
 
   parseDeviceData: function parseDeviceData(data) {
@@ -160,7 +248,20 @@ let ADB = {
    */
 
   getDevices: function getDevices(callback) {
-    this.sendRequest("host:track-devices", function (response) {
+    this.simpleRequest("host:track-devices", function (status, response) {
+      if (status != ADB_STATUS_OKAY) {
+        callback(status);
+        return;
+      }
+      let devices = this.parseDeviceData(response.data);
+      debug("Devices: " + JSON.stringify(devices));
+      callback(null, devices);
+    }.bind(this));
+  },
+
+  trackDevices: function trackDevices(callback) {
+    //XXX
+    this.newRequest("host:track-devices", function (response) {
       let devices = this.parseDeviceData(response.data);
       debug("Devices: " + JSON.stringify(devices));
       callback(devices);
@@ -168,6 +269,7 @@ let ADB = {
   },
 
   setDevice: function setDevice(serial, callback) {
+    //XXX
     this.sendRequest("host:transport:" + serial, function (response) {
       debug("setDevice:");
       debug(response);
@@ -175,6 +277,7 @@ let ADB = {
   },
 
   getEventLog: function getEventLog(callback) {
+    //XXX
     this.sendRequest("log:event", function (response) {
       debug("eventlog:");
       debug(response);
@@ -182,6 +285,7 @@ let ADB = {
   },
 
   getLogcat: function getLogcat(callback) {
+    //XXX
     this.sendRequest("log:radio", function (response) {
       debug("logcat:");
       debug(response);
