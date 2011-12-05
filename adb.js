@@ -19,7 +19,7 @@ const BinaryOutputStream = Components.Constructor(
 
 
 const ADB_DEFAULT_HOST = "127.0.0.1";
-const ADB_DEAFULT_PORT = "5037";
+const ADB_DEFAULT_PORT = "5037";
 const ADB_REQUEST_LENGTH_LEN = 4;
 const ADB_RESPONSE_STATUS_LEN = 4;
 const ADB_PACKET_LENGTH_LEN = 4;
@@ -51,7 +51,7 @@ ADBRequest.prototype = {
     this.binaryOutputStream = BinaryOutputStream(this.outputStream);
     this.inputStream.asyncWait(this, 0, 0, Services.tm.currentThread);
     this.connected = true;
-    debug("Connected to " + host + ":" + port);
+    debug("Connected to " + this.host + ":" + this.port);
   },
 
   disconnect: function disconnect() {
@@ -133,12 +133,12 @@ ADBRequest.prototype = {
       // it from the buffer. This gets reset to null every time we have
       // handled a packet.
       if (this.packetLength == null) {
-        if (this.buffer.length < ADB_RESPONSE_LENGTH_LEN) {
+        if (this.buffer.length < ADB_PACKET_LENGTH_LEN) {
           return;
         }
-        let lengthstr = this.buffer.slice(0, ADB_RESPONSE_LENGTH_LEN);
+        let lengthstr = this.buffer.slice(0, ADB_PACKET_LENGTH_LEN);
         this.packetLength = parseInt(lengthstr, 16);
-        this.buffer = this.buffer.slice(ADB_RESPONSE_LENGTH_LEN);
+        this.buffer = this.buffer.slice(ADB_PACKET_LENGTH_LEN);
       }
 
       // Bail if we haven't received the whole packet yet.
@@ -189,6 +189,9 @@ ADBRequest.prototype = {
                  .slice(-ADB_REQUEST_LENGTH_LEN);
     request = length + request;
     this.transmit(request);
+    // If we're calling send() multiple times, we expect another full
+    // blown response.
+    this.responseDispatched = false;
   },
 
   onresponse: function onresponse(status, data) {
@@ -220,12 +223,13 @@ ADBClient.prototype = {
     return new ADBRequest(this.host, this.port);
   },
 
-  simpleRequest: function simpleRequest(request, callback) {
+  simpleRequest: function simpleRequest(data, callback) {
     let request = this.newRequest();
     request.onresponse = function onresponse(status, response) {
       request.disconnect();
       callback(status, response);
     };
+    request.send(data);
     return request;
   },
 
@@ -253,43 +257,79 @@ ADBClient.prototype = {
         callback(status);
         return;
       }
-      let devices = this.parseDeviceData(response.data);
+      let devices = this.parseDeviceData(response);
       debug("Devices: " + JSON.stringify(devices));
       callback(null, devices);
     }.bind(this));
   },
 
   trackDevices: function trackDevices(callback) {
-    //XXX
-    this.newRequest("host:track-devices", function (response) {
-      let devices = this.parseDeviceData(response.data);
-      debug("Devices: " + JSON.stringify(devices));
-      callback(devices);
-    }.bind(this));
+    let request = this.newRequest();
+    request.onresponse = function onresponse(status, data) {
+      if (status != ADB_STATUS_OKAY) {
+        callback(status);
+        return;
+      }
+      let devices = this.parseDeviceData(data);
+      callback(null, devices);
+    };
+    request.onincremental = function onincremental(data) {
+      let devices = this.parseDeviceData(data);
+      callback(null, devices);
+    };
+    request.send("host:track-devices");
+    return request;
   },
 
-  setDevice: function setDevice(serial, callback) {
-    //XXX
-    this.sendRequest("host:transport:" + serial, function (response) {
-      debug("setDevice:");
+  setDevice: function setDevice(request, serial, callback) {
+    request.onresponse = function onresponse(status, response) {
+      debug("setdevice: " + status);
       debug(response);
-    });
+      callback();
+    };
+    request.onincremental = function onincremental(data) {
+      debug("incremental setdevice " + data);
+    };
+    request.send("host:transport:" + serial);
+    return request;
   },
 
-  getEventLog: function getEventLog(callback) {
-    //XXX
-    this.sendRequest("log:event", function (response) {
-      debug("eventlog:");
+  getEventLog: function getEventLog(request, callback) {
+    request.onresponse = function onresponse(status, response) {
+      debug("eventlog: " + status);
       debug(response);
-    });
+    };
+    request.onincremental = function onincremental(data) {
+      debug("incremental eventlog " + data);
+    };
+    request.send("log:event");
+    return request;
   },
 
-  getLogcat: function getLogcat(callback) {
-    //XXX
-    this.sendRequest("log:radio", function (response) {
-      debug("logcat:");
-      debug(response);
-    });
+  logcat: function logcat(request) {
+    let request = this.newRequest();
+    request.onresponse = function onresponse(status, data) {
+      debug("logcat: " + status);
+      debug(data);
+    };
+    request.onincremental = function onincremental(data) {
+      debug("logcat " + data);
+    };
+    request.send("shell:exec logcat");
+    return request;
   },
 
 };
+
+function testlogcat() {
+  client.getDevices(function (devices) {
+    let serial = devices[0].serial;
+    let request = client.newRequest();
+    client.setDevice(request, serial, function () {
+      //client.waitForDevice()
+      client.logcat(request);
+    });
+  });
+}
+
+//[14:40:56.265] Devices: [{"serial":"304D19678B33447E","state":"device"}] @ chrome://ril/content/adb.html:31
