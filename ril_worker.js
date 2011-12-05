@@ -303,10 +303,9 @@ let Buf = {
 
     // We can let the typed arrays do the copying if the incoming data won't
     // wrap around the edges of the circular buffer.
-    let remaining = this.INCOMING_BUFFER_LENGTH - this.incomingWriteIndex - 1;
+    let remaining = this.INCOMING_BUFFER_LENGTH - this.incomingWriteIndex;
     if (remaining >= incoming.length) {
       this.incomingBytes.set(incoming, this.incomingWriteIndex);
-      this.incomingWriteIndex += incoming.length;
     } else {
       // The incoming data would wrap around it.
       let head = incoming.subarray(0, remaining);
@@ -314,6 +313,8 @@ let Buf = {
       this.incomingBytes.set(head, this.incomingWriteIndex);
       this.incomingBytes.set(tail, 0);
     }
+    this.incomingWriteIndex = (this.incomingWriteIndex + incoming.length) %
+                              this.INCOMING_BUFFER_LENGTH;
   },
 
   /**
@@ -325,7 +326,7 @@ let Buf = {
   processIncoming: function processIncoming(incoming) {
     if (DEBUG) {
       debug("Received " + incoming.length + " bytes.");
-      debug("Previous buffer size is " + this.readIncoming);
+      debug("Already read " + this.readIncoming);
     }
 
     this.writeToIncoming(incoming);
