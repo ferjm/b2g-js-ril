@@ -628,13 +628,27 @@ let RIL = {
    * Hang up the phone.
    *
    * @param index
-   *        Index (1-based)
+   *        Call index (1-based) as reported by REQUEST_GET_CURRENT_CALLS.
    */
   hangUp: function hangUp(index) {
     Buf.newParcel(REQUEST_HANGUP);
     Buf.writeUint32(1);
     Buf.writeUint32(index);
     Buf.sendParcel();
+  },
+
+  /**
+   * Answer an incoming call.
+   */
+  answerCall: function answerCall() {
+    Buf.simpleRequest(REQUEST_ANSWER);
+  },
+
+  /**
+   * Reject an incoming call.
+   */
+  rejectCall: function rejectCall() {
+    Buf.simpleRequest(REQUEST_UDUB);
   },
 
   /**
@@ -752,18 +766,24 @@ RIL[REQUEST_GET_CURRENT_CALLS] = function REQUEST_GET_CURRENT_CALLS(length) {
   }
   Phone.onCurrentCalls(calls);
 };
-RIL[REQUEST_DIAL] = null;
+RIL[REQUEST_DIAL] = function REQUEST_DIAL(length) {
+  Phone.onDial();
+};
 RIL[REQUEST_GET_IMSI] = function REQUEST_GET_IMSI(length) {
   let imsi = Buf.readString();
   Phone.onIMSI(imsi);
 };
-RIL[REQUEST_HANGUP] = null;
+RIL[REQUEST_HANGUP] = function REQUEST_HANGUP(length) {
+  Phone.onHangUp();
+};
 RIL[REQUEST_HANGUP_WAITING_OR_BACKGROUND] = null;
 RIL[REQUEST_HANGUP_FOREGROUND_RESUME_BACKGROUND] = null;
 RIL[REQUEST_SWITCH_WAITING_OR_HOLDING_AND_ACTIVE] = null;
 RIL[REQUEST_SWITCH_HOLDING_AND_ACTIVE] = null;
 RIL[REQUEST_CONFERENCE] = null;
-RIL[REQUEST_UDUB] = null;
+RIL[REQUEST_UDUB] = function REQUEST_UDUB(length) {
+  Phone.onRejectCall();
+};
 RIL[REQUEST_LAST_CALL_FAIL_CAUSE] = null;
 RIL[REQUEST_SIGNAL_STRENGTH] = function REQUEST_SIGNAL_STRENGTH() {
   let strength = {
@@ -826,7 +846,9 @@ RIL[REQUEST_GET_IMEISV] = function REQUEST_GET_IMEISV() {
   let imeiSV = Buf.readString();
   Phone.onIMEISV(imeiSV);
 };
-RIL[REQUEST_ANSWER] = null;
+RIL[REQUEST_ANSWER] = function REQUEST_ANSWER(length) {
+  Phone.onAnswerCall();
+};
 RIL[REQUEST_DEACTIVATE_DATA_CALL] = null;
 RIL[REQUEST_QUERY_FACILITY_LOCK] = null;
 RIL[REQUEST_SET_FACILITY_LOCK] = null;
@@ -1215,6 +1237,18 @@ debug("sending callstatechange event");
                          signalStrength: strength});
   },
 
+  onDial: function onDial() {
+  },
+
+  onHangUp: function onHangUp() {
+  },
+
+  onAnswerCall: function onAnswerCall() {
+  },
+
+  onRejectCall: function onRejectCall() {
+  },
+
   onSendSMS: function onSendSMS(messageRef, ackPDU, errorCode) {
     //TODO
   },
@@ -1254,10 +1288,30 @@ debug("sending callstatechange event");
     RIL.dial(options.number, 0, 0);
   },
 
+  /**
+   * Hang up a call.
+   *
+   * @param callIndex
+   *        Call index of the call to hang up.
+   */
   hangUp: function hangUp(options) {
     //TODO need to check whether call is holding/waiting/background
-    // and then use RIL_REQUEST_HANGUP_WAITING_OR_BACKGROUND
+    // and then use REQUEST_HANGUP_WAITING_OR_BACKGROUND
     RIL.hangUp(options.callIndex);
+  },
+
+  /**
+   * Answer an incoming call.
+   */
+  answerCall: function answerCall() {
+    RIL.answerCall();
+  },
+
+  /**
+   * Reject an incoming call.
+   */
+  rejectCall: function rejectCall() {
+    RIL.rejectCall();
   },
 
   /**
