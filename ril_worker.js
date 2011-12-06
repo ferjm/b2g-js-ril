@@ -1152,7 +1152,6 @@ let Phone = {
       newCall.number = "+" + newCall.number;
     }
     this.currentCalls[newCall.index] = newCall;
-debug("sending callstatechange event");
     this.sendDOMMessage({type:      "callstatechange",
                          callState: RIL_TO_DOM_CALL_STATE[newCall.state],
                          callIndex: newCall.index,
