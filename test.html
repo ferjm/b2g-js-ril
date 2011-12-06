@@ -22,8 +22,6 @@
 <script type="application/javascript;version=1.8">
 
 function init() {
-  window.addEventListener("message", onmessage);
-
   window.setTimeout(function () {
     Cu.import("resource://gre/modules/Services.jsm");
     let chromeWin = Services.wm.getMostRecentWindow("navigator:browser");
@@ -67,6 +65,9 @@ navigator.mozTelephony.onradiostatechange = function (event) {
 
 navigator.mozTelephony.onsignalstrengthchange = function (event) {
   console.log("New Radio State in the DOM: " + this.signalStrength);
+  if (this.signalStrength.gsmSignalStrength == 99) {
+    return;
+  }
   document.getElementById("signalStrength").value =
     this.signalStrength.gsmSignalStrength;
 }
