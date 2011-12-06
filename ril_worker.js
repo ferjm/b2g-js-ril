@@ -71,9 +71,6 @@ const UINT16_SIZE = 2;
 const UINT32_SIZE = 4;
 const PARCEL_SIZE_SIZE = UINT32_SIZE;
 
-const RESPONSE_TYPE_SOLICITED = 0;
-const RESPONSE_TYPE_UNSOLICITED = 1;
-
 /**
  * This object contains helpers buffering incoming data & deconstructing it
  * into parcels as well as buffering outgoing data & constructing parcels.
@@ -714,18 +711,22 @@ RIL[REQUEST_CHANGE_SIM_PIN] = null;
 RIL[REQUEST_CHANGE_SIM_PIN2] = null;
 RIL[REQUEST_ENTER_NETWORK_DEPERSONALIZATION] = null;
 RIL[REQUEST_GET_CURRENT_CALLS] = function REQUEST_GET_CURRENT_CALLS(length) {
-  let calls = [];
   let calls_length = 0;
   // The RIL won't even send us the length integer if there are no active calls.
   // So only read this integer if the parcel actually has it.
   if (length) {
     calls_length = Buf.readUint32();
   }
+  if (!calls_length) {
+    Phone.onCurrentCalls(null);
+    return;
+  }
 
+  let calls = {};
   for (let i = 0; i < calls_length; i++) {
-    let dc = {
-      state:              Buf.readUint32(), // CALL_STATE_* constants
-      index:              Buf.readUint32(),
+    let call = {
+      state:              Buf.readUint32(), // CALL_STATE_*
+      index:              Buf.readUint32(), // GSM index (1-based)
       toa:                Buf.readUint32(),
       isMpty:             Boolean(Buf.readUint32()),
       isMT:               Boolean(Buf.readUint32()),
@@ -734,22 +735,21 @@ RIL[REQUEST_GET_CURRENT_CALLS] = function REQUEST_GET_CURRENT_CALLS(length) {
       isVoicePrivacy:     Boolean(Buf.readUint32()),
       somethingOrOther:   Buf.readUint32(), //XXX TODO whatziz? not in ril.h, but it's in the output...
       number:             Buf.readString(), //TODO munge with TOA
-      numberPresentation: Buf.readUint32(), // Connection.PRESENTATION XXX TODO
+      numberPresentation: Buf.readUint32(), // CALL_PRESENTATION_*
       name:               Buf.readString(),
       namePresentation:   Buf.readUint32(),
       uusInfo:            null
     };
     let uusInfoPresent = Buf.readUint32();
     if (uusInfoPresent == 1) {
-      dc.uusInfo = {
+      call.uusInfo = {
         type:     Buf.readUint32(),
         dcs:      Buf.readUint32(),
         userData: null //XXX TODO byte array?!?
       };
     }
-    calls.push(dc);
+    calls[call.index] = call;
   }
-
   Phone.onCurrentCalls(calls);
 };
 RIL[REQUEST_DIAL] = null;
@@ -991,7 +991,7 @@ let Phone = {
   /**
    * Active calls
    */
-  calls: null,
+  currentCalls: {},
 
   /**
    * Handlers for messages from the RIL. They all begin with on* and are called
@@ -1031,7 +1031,8 @@ let Phone = {
       RIL.setScreenState(true);
       this.sendDOMMessage({
         type: "radiostatechange",
-        radioState: (newState == RADIO_STATE_OFF) ? "off" : "ready"
+        radioState: (newState == RADIO_STATE_OFF) ?
+                     DOM_RADIOSTATE_OFF : DOM_RADIOSTATE_READY
       });
 
       //XXX TODO For now, just turn the radio on if it's off. for the real
@@ -1048,7 +1049,7 @@ let Phone = {
       //TODO do that
 
       this.sendDOMMessage({type: "radiostatechange",
-                           radioState: "unavailable"});
+                           radioState: DOM_RADIOSTATE_UNAVAILABLE});
     }
 
     if (newState == RADIO_STATE_SIM_READY  ||
@@ -1059,13 +1060,13 @@ let Phone = {
       this.requestNetworkInfo();
       RIL.getSignalStrength();
       this.sendDOMMessage({type: "cardstatechange",
-                           cardState: "ready"});
+                           cardState: DOM_CARDSTATE_READY});
     }
     if (newState == RADIO_STATE_SIM_LOCKED_OR_ABSENT  ||
         newState == RADIO_STATE_RUIM_LOCKED_OR_ABSENT) {
       RIL.getICCStatus();
       this.sendDOMMessage({type: "cardstatechange",
-                           cardState: "unavailable"});
+                           cardState: DOM_CARDSTATE_UNAVAILABLE});
     }
 
     let wasOn = this.radioState != RADIO_STATE_OFF &&
@@ -1082,11 +1083,59 @@ let Phone = {
     this.radioState = newState;
   },
 
-  onCurrentCalls: function onCurrentCalls(calls) {
-    debug("onCurrentCalls");
-    debug(calls);
-    //TODO
-    this.sendDOMMessage({type: "callstatechange", callState: calls});
+  onCurrentCalls: function onCurrentCalls(newCalls) {
+    // Go through the calls we currently have on file and see if any of them
+    // changed state. Remove them from the newCalls map as we deal with them
+    // so that only new calls remain in the map after we're done.
+    for each (let currentCall in this.currentCalls) {
+      let callIndex = currentCall.index;
+      let newCall;
+      if (newCalls) {
+        newCall = newCalls[callIndex];
+        delete newCalls[callIndex];
+      }
+
+      if (!newCall) {
+        // Call is no longer reported by the radio. Send disconnected
+        // state change.
+        this.sendDOMMessage({type:      "callstatechange",
+                             callState:  DOM_CALL_READYSTATE_DISCONNECTED,
+                             callIndex:  callIndex,
+                             number:     currentCall.number,
+                             name:       currentCall.name});
+        delete this.currentCalls[currentCall];
+        continue;
+      }
+
+      if (newCall.state == currentCall.state) {
+        continue;
+      }
+
+      this._handleChangedCallState(newCall);
+    }
+
+    // Go through any remaining calls that are new to us.
+    for each (let newCall in newCalls) {
+      if (newCall.isVoice) {
+        this._handleChangedCallState(newCall);
+      }
+    }
+  },
+
+  _handleChangedCallState: function handleChangedCallState(newCall) {
+    // Format international numbers appropriately.
+    if (newCall.number &&
+        newCall.toa == TOA_INTERNATIONAL &&
+        newCall.number[0] != "+") {
+      newCall.number = "+" + newCall.number;
+    }
+    this.currentCalls[newCall.index] = newCall;
+debug("sending callstatechange event");
+    this.sendDOMMessage({type:      "callstatechange",
+                         callState: RIL_TO_DOM_CALL_STATE[newCall.state],
+                         callIndex: newCall.index,
+                         number:    newCall.number,
+                         name:      newCall.name});
   },
 
   onCallStateChanged: function onCallStateChanged() {
@@ -1094,9 +1143,8 @@ let Phone = {
   },
 
   onCallRing: function onCallRing(info) {
-    debug("onCallRing");
-    debug(info);
-    //TODO
+    debug("onCallRing " + JSON.stringify(info)); //DEBUG
+    RIL.getCurrentCalls();
   },
 
   onNetworkStateChanged: function onNetworkStateChanged() {
@@ -1207,6 +1255,8 @@ let Phone = {
   },
 
   hangUp: function hangUp(options) {
+    //TODO need to check whether call is holding/waiting/background
+    // and then use RIL_REQUEST_HANGUP_WAITING_OR_BACKGROUND
     RIL.hangUp(options.callIndex);
   },
 

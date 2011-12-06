@@ -160,18 +160,6 @@ EventTarget.prototype = {
   }
 };
 
-const DOM_RADIOSTATE_UNAVAILABLE = "unavailable";
-const DOM_RADIOSTATE_OFF         = "off";
-const DOM_RADIOSTATE_READY       = "ready";
-   
-const DOM_CARDSTATE_UNAVAILABLE    = "unavailable";
-const DOM_CARDSTATE_ABSENT         = "absent";
-const DOM_CARDSTATE_PIN_REQUIRED   = "pin_required";
-const DOM_CARDSTATE_PUK_REQUIRED   = "puk_required";
-const DOM_CARDSTATE_NETWORK_LOCKED = "network_locked";
-const DOM_CARDSTATE_NOT_READY      = "not_ready";
-const DOM_CARDSTATE_READY          = "ready";
-
 /**
  * Callback object that Telephony registers with nsIRadioInterface.
  * Telephony can't use itself because that might overload event handler
@@ -266,13 +254,6 @@ defineEventListenerSlot(Telephony.prototype, "signalstrengthchange");
 defineEventListenerSlot(Telephony.prototype, "operatorchange");
 defineEventListenerSlot(Telephony.prototype, "incoming");
 
-
-const DOM_CALL_READYSTATE_DIALING   = "dialing";
-const DOM_CALL_READYSTATE_DOM_CALLING   = "calling";
-const DOM_CALL_READYSTATE_INCOMING  = "incoming";
-const DOM_CALL_READYSTATE_CONNECTED = "connected";
-const DOM_CALL_READYSTATE_CLOSED    = "closed";
-const DOM_CALL_READYSTATE_BUSY      = "busy";
 
 function TelephonyCall(number, initialState) {
   this.number = number;
