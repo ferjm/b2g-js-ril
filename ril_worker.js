@@ -57,8 +57,11 @@
 
 "use strict";
 
-loadScripts("ril_vars.js");
+importScripts("ril_vars.js");
 
+const DEBUG = true;
+
+const INT32_MAX   = 2147483647;
 const UINT8_SIZE  = 1;
 const UINT16_SIZE = 2;
 const UINT32_SIZE = 4;
@@ -155,11 +158,22 @@ let Buf = {
   },
 
   readString: function readString() {
-	let string_len = this.readUint32();
+    let string_len = this.readUint32();
+    if (string_len < 0 || string_len >= INT32_MAX) {
+      return null;
+    }
     let s = "";
     for (let i = 0; i < string_len; i++) {
       s += String.fromCharCode(this.readUint16());
     }
+    // Strings are \0\0 delimited, but that isn't part of the length. And
+    // if the string length is even, the delimiter is two characters wide.
+    // It's insane, I know.
+    let delimiter = this.readUint16();
+    if (!(string_len % 2)) {
+      delimiter += this.readUint16();
+    }
+    debug("String delimiter: " + delimiter);
     return s;
   },
 
@@ -199,9 +213,27 @@ let Buf = {
   },
 
   writeString: function writeString(value) {
+    if (value == null) {
+      this.writeUint32(-1);
+      return;
+    }
     this.writeUint32(value.length);
     for (let i = 0; i < value.length; i++) {
       this.writeUint16(value.charCodeAt(i));
+    }
+    // Strings are \0\0 delimited, but that isn't part of the length. And
+    // if the string length is even, the delimiter is two characters wide.
+    // It's insane, I know.
+    this.writeUint16(0);
+    if (!(value.length % 2)) {
+      this.writeUint16(0);
+    }
+  },
+
+  writeStringList: function writeStringList(strings) {
+    this.writeUint32(strings.length);
+    for (let i = 0; i < strings.length; i++) {
+      this.writeString(strings[i]);
     }
   },
 
@@ -281,10 +313,14 @@ let Buf = {
    * Process incoming data.
    */
   processIncoming: function processIncoming(incoming) {
+    if (DEBUG) {
+      debug("Received " + incoming.length + " bytes.");
+      debug("Previous buffer size is " + this.readIncoming);
+    }
+
     this.writeToIncoming(incoming);
     this.readIncoming += incoming.length;
     while (true) {
-      debug("Read Incoming: " + this.readIncoming);
       if (!this.currentParcelSize) {
         // We're expecting a new parcel.
         if (this.readIncoming < PARCEL_SIZE_SIZE) {
@@ -293,6 +329,7 @@ let Buf = {
           return;
         }
         this.currentParcelSize = this.readParcelSize();
+        if (DEBUG) debug("New parcel, size " + this.currentParcelSize);
         // The size itself is not included in the size.
         this.readIncoming -= PARCEL_SIZE_SIZE;
       }
@@ -306,17 +343,35 @@ let Buf = {
       // Let's do that.
       let expectedAfterIndex = (this.incomingReadIndex + this.currentParcelSize)
                                % this.INCOMING_BUFFER_LENGTH;
+
+      if (DEBUG) {
+        let parcel;
+        if (expectedAfterIndex < this.incomingReadIndex) {
+          let head = this.incomingBytes.subarray(this.incomingReadIndex);
+          let tail = this.incomingBytes.subarray(0, expectedAfterIndex);
+          parcel = Array.slice(head).concat(Array.slice(tail));
+        } else {
+          parcel = Array.slice(this.incomingBytes.subarray(
+            this.incomingReadIndex, expectedAfterIndex));
+        }
+        if (DEBUG) {
+          debug("Parcel (size " + this.currentParcelSize + "): " + parcel);
+        }
+      }
+
       try {
         this.processParcel();
       } catch (ex) {
-        debug("Parcel handling threw " + ex);
+        if (DEBUG) debug("Parcel handling threw " + ex);
       }
 
       // Ensure that the whole parcel was consumed.
       if (this.incomingReadIndex != expectedAfterIndex) {
-        debug("Parcel handling code did not consume the right amount of data!" +
-              " Expected: " + expectedAfterIndex +
-              " Actual: " + this.incomingReadIndex);
+        if (DEBUG) {
+          debug("Parcel handler didn't consume whole parcel, " +
+                Math.abs(expectedAfterIndex - this.incomingReadIndex) +
+                " bytes left over");
+        }
         this.incomingReadIndex = expectedAfterIndex;
       }
       this.readIncoming -= this.currentParcelSize;
@@ -335,6 +390,13 @@ let Buf = {
     let request_type;
     if (response_type == RESPONSE_TYPE_SOLICITED) {
       let token = this.readUint32();
+      let error = this.readUint32();
+      if (error) {
+        //TODO
+        debug("Received error " + error + " for solicited parcel type " +
+              response_type);
+        return;
+      }
       request_type = this.tokenRequestMap[token];
       debug("Solicited response for request type " + request_type +
             ", token " + token);
@@ -376,6 +438,7 @@ let Buf = {
     // It also assumes that it will make a copy of the ArrayBufferView right
     // away.
     let parcel = this.outgoingBytes.subarray(0, this.outgoingIndex);
+    debug("Outgoing parcel: " + Array.slice(parcel));
     postRILMessage(parcel);
     this.outgoingIndex = PARCEL_SIZE_SIZE;
   },
@@ -402,20 +465,20 @@ addEventListener("RILMessageEvent", function onRILMessageEvent(event) {
 let RIL = {
 
   /**
-   * Retrieve the SIM card's status.
+   * Retrieve the ICC card's status.
    * 
-   * Response will call Phone.onSIMStatus().
+   * Response will call Phone.onICCStatus().
    */
-  getSIMStatus: function getSIMStatus() {
+  getICCStatus: function getICCStatus() {
     Buf.simpleRequest(RIL_REQUEST_GET_SIM_STATUS);
   },
 
   /**
-   * Enter a PIN to unlock the SIM.
+   * Enter a PIN to unlock the ICC.
    * 
    * Response will call Phone.onEnterSIMPIN().
    */
-  enterSIMPIN: function enterSIMPIN(pin) {
+  enterICCPIN: function enterICCPIN(pin) {
     Buf.newParcel(RIL_REQUEST_ENTER_SIM_PIN);
     Buf.writeUint32(1);
     Buf.writeString(pin);
@@ -431,12 +494,47 @@ let RIL = {
   setRadioPower: function setRadioPower(on) {
     Buf.newParcel(RIL_REQUEST_RADIO_POWER);
     Buf.writeUint32(1);
-    Buf.writeUint32(on ? 1: 0);
+    Buf.writeUint32(on ? 1 : 0);
     Buf.sendParcel();
   },
 
+  /**
+   * Set screen state.
+   *
+   * @param on
+   *        Boolean indicating whether the screen should be on or off.
+   */
+  setScreenState: function setScreenState(on) {
+    Buf.newParcel(RIL_REQUEST_SCREEN_STATE);
+    Buf.writeUint32(1);
+    Buf.writeUint32(on ? 1 : 0);
+    Buf.sendParcel();
+  },
+
+  /**
+   * Get current calls.
+   */
+  getCurrentCalls: function getCurrentCalls() {
+    Buf.simpleRequest(RIL_REQUEST_GET_CURRENT_CALLS);
+  },
+
+  /**
+   * Get the signal strength.
+   */
   getSignalStrength: function getSignalStrength() {
     Buf.simpleRequest(RIL_REQUEST_SIGNAL_STRENGTH);
+  },
+
+  getIMEI: function getIMEI() {
+    Buf.simpleRequest(RIL_REQUEST_GET_IMEI);
+  },
+
+  getIMEISV: function getIMEISV() {
+    Buf.simpleRequest(RIL_REQUEST_GET_IMEISV);
+  },
+
+  getDeviceIdentity: function getDeviceIdentity() {
+    Buf.simpleRequest(RIL_REQUEST_GET_DEVICE_IDENTITY);
   },
 
   /**
@@ -496,9 +594,9 @@ let RIL = {
 };
 
 RIL[RIL_REQUEST_GET_SIM_STATUS] = function RIL_REQUEST_GET_SIM_STATUS() {
-  let simStatus = {
-    cardState:                   Buf.readUint32(),
-    universalPINState:           Buf.readUint32(),
+  let iccStatus = {
+    cardState:                   Buf.readUint32(), // CARDSTATE_*
+    universalPINState:           Buf.readUint32(), // PINSTATE_*
     gsmUmtsSubscriptionAppIndex: Buf.readUint32(),
     setCdmaSubscriptionAppIndex: Buf.readUint32(),
     apps:                        []
@@ -510,10 +608,10 @@ RIL[RIL_REQUEST_GET_SIM_STATUS] = function RIL_REQUEST_GET_SIM_STATUS() {
   }
 
   for (let i = 0 ; i < apps_length ; i++) {
-    simStatus.apps.push({
-      app_type:       Buf.readUint32(),
-      app_state:      Buf.readUint32(),
-      perso_substate: Buf.readUint32(),
+    iccStatus.apps.push({
+      app_type:       Buf.readUint32(), // APPTYPE_*
+      app_state:      Buf.readUint32(), // APPSTATE_*
+      perso_substate: Buf.readUint32(), // PERSOSUBSTATE_*
       aid:            Buf.readString(),
       app_label:      Buf.readString(),
       pin1_replaced:  Buf.readUint32(),
@@ -521,11 +619,11 @@ RIL[RIL_REQUEST_GET_SIM_STATUS] = function RIL_REQUEST_GET_SIM_STATUS() {
       pin2:           Buf.readUint32()
     });
   }
-  Phone.onSIMStatus(simStatus);
+  Phone.onICCStatus(iccStatus);
 };
 RIL[RIL_REQUEST_ENTER_SIM_PIN] = function RIL_REQUEST_ENTER_SIM_PIN() {
   let response = Buf.readUint32List();
-  Phone.onEnterSIMPIN(response);
+  Phone.onEnterICCPIN(response);
 };
 RIL[RIL_REQUEST_ENTER_SIM_PUK] = null;
 RIL[RIL_REQUEST_ENTER_SIM_PIN2] = null;
@@ -533,7 +631,40 @@ RIL[RIL_REQUEST_ENTER_SIM_PUK2] = null;
 RIL[RIL_REQUEST_CHANGE_SIM_PIN] = null;
 RIL[RIL_REQUEST_CHANGE_SIM_PIN2] = null;
 RIL[RIL_REQUEST_ENTER_NETWORK_DEPERSONALIZATION] = null;
-RIL[RIL_REQUEST_GET_CURRENT_CALLS] = null;
+RIL[RIL_REQUEST_GET_CURRENT_CALLS] = function RIL_REQUEST_GET_CURRENT_CALLS() {
+  let calls = [];
+  let calls_length = Buf.readUint32();
+  debug("No. of current calls: " + calls_length);
+/*
+  for (let i = 0; i < calls_length; i++) {
+    let dc = {
+      state:              Buf.readUint32(), // CALLSTATE_* constants
+      index:              Buf.readUint32(),
+      TOA:                Buf.readUint32(),
+      isMpty:             (0 != Buf.readUint32()),
+      isMT:               (0 != Buf.readUint32()),
+      als:                Buf.readUint32(),
+      isVoice:            (0 == Buf.readUint32()) ? false : true,
+      isVoicePrivacy:     (0 != Buf.readUint32()),
+      number:             Buf.readString(), //TODO munge with TOA
+      numberPresentation: Buf.readUint32(), // Connection.PRESENTATION XXX TODO
+      name:               Buf.readString(),
+      namePresentation:   Buf.readUint32(),
+      uusInfo:            null
+    };
+    let uusInfoPresent = Buf.readUint32();
+    if (uusInfoPresent == 1) {
+      dc.uusInfo = {
+        type:     Buf.readUint32(),
+        dcs:      Buf.readUint32(),
+        userData: null //XXX TODO byte array?!?
+      };
+    }
+    calls.push(dc);
+  }
+*/
+  Phone.onCurrentCalls(calls);
+};
 RIL[RIL_REQUEST_DIAL] = null;
 RIL[RIL_REQUEST_GET_IMSI] = function RIL_REQUEST_GET_IMSI(length) {
   let imsi = Buf.readString(length);
@@ -548,11 +679,22 @@ RIL[RIL_REQUEST_CONFERENCE] = null;
 RIL[RIL_REQUEST_UDUB] = null;
 RIL[RIL_REQUEST_LAST_CALL_FAIL_CAUSE] = null;
 RIL[RIL_REQUEST_SIGNAL_STRENGTH] = function RIL_REQUEST_SIGNAL_STRENGTH() {
-  const length = 7;
-  let strength = [];
-  for (let i = 0; i < length; i ++) {
-    strength.push(Buf.readUint32());
-  }
+  let strength = {
+    // Valid values are (0-31, 99) as defined in TS 27.007 8.5.
+    gsmSignalStrength: Buf.readUint32(),
+    // GSM bit error rate (0-7, 99) as defined in TS 27.007 8.5.
+    gsmBitErrorRate:   Buf.readUint32(),
+    // The CDMA RSSI value.
+    cdmaDBM:           Buf.readUint32(),
+    // The CDMA EC/IO.
+    cdmaECIO:          Buf.readUint32(),
+    // The EVDO RSSI value.
+    evdoDBM:           Buf.readUint32(),
+    // The EVDO EC/IO.
+    evdoECIO:          Buf.readUint32(),
+    // Valid values are 0-8.  8 is the highest signal to noise ratio
+    evdoSNR:           Buf.readUint32()
+  };
   Phone.onSignalStrength(strength);
 };
 RIL[RIL_REQUEST_REGISTRATION_STATE] = function RIL_REQUEST_REGISTRATION_STATE(length) {
@@ -669,7 +811,9 @@ RIL[RIL_UNSOL_RESPONSE_RADIO_STATE_CHANGED] = function RIL_UNSOL_RESPONSE_RADIO_
   let newState = Buf.readUint32();
   Phone.onRadioStateChanged(newState);
 };
-RIL[RIL_UNSOL_RESPONSE_CALL_STATE_CHANGED] = null;
+RIL[RIL_UNSOL_RESPONSE_CALL_STATE_CHANGED] = function RIL_UNSOL_RESPONSE_CALL_STATE_CHANGED() {
+  Phone.onCallStateChanged();
+};
 RIL[RIL_UNSOL_RESPONSE_NETWORK_STATE_CHANGED] = function RIL_UNSOL_RESPONSE_NETWORK_STATE_CHANGED() {
   Phone.onNetworkStateChanged();
 };
@@ -742,6 +886,10 @@ let Phone = {
    */
   networkSelectionMode: null,
 
+  /**
+   * ICC card status
+   */
+  iccStatus: null,
 
   /**
    * Handlers for messages from the RIL. They all begin with on*.
@@ -754,29 +902,61 @@ let Phone = {
       return;
     }
 
+    let gsm = newState == RADIOSTATE_SIM_NOT_READY        ||
+              newState == RADIOSTATE_SIM_LOCKED_OR_ABSENT ||
+              newState == RADIOSTATE_SIM_READY;
+    let cdma = newState == RADIOSTATE_RUIM_NOT_READY       ||
+               newState == RADIOSTATE_RUIM_READY            ||
+               newState == RADIOSTATE_RUIM_LOCKED_OR_ABSENT ||
+               newState == RADIOSTATE_NV_NOT_READY          ||
+               newState == RADIOSTATE_NV_READY;
+
+    // Figure out state transitions and send out more RIL requests as necessary
+    // as well as events to the main thread.
+
     if (this.radioState == RADIOSTATE_UNAVAILABLE &&
         newState != RADIOSTATE_UNAVAILABLE) {
       // The radio became available, let's get its info.
-      //TODO convert to method calls on RIL
-      Buf.simpleRequest(RIL_REQUEST_GET_IMEI);
-      Buf.simpleRequest(RIL_REQUEST_GET_IMEISV);
+      if (gsm) {
+        RIL.getIMEI();
+        RIL.getIMEISV();
+      }
+      if (cdma) {
+        RIL.getDeviceIdentity();
+      }
       Buf.simpleRequest(RIL_REQUEST_BASEBAND_VERSION);
+      RIL.setScreenState(true);
+      this.sendDOMMessage({
+        type: "radiostatechange",
+        radioState: (newState == RADIOSTATE_OFF) ? "off" : "ready"
+      });
     }
-    if (this.radioState != RADIOSTATE_UNAVAILABLE &&
-        newState == RADIOSTATE_UNAVAILABLE) {
+
+    if (newState == RADIOSTATE_UNAVAILABLE) {
       // The radio is no longer available, we need to deal with any
       // remaining pending requests.
-      //TODO
+      //TODO do that
+
+      this.sendDOMMessage({type: "radiostatechange",
+                           radioState: "unavailable"});
     }
-    if (this.radioState != RADIOSTATE_SIM_READY &&
-        newState == RADIOSTATE_SIM_READY) {
-      this.requestPhoneState();
-      //TODO schedule signal strength request
+
+    if (newState == RADIOSTATE_SIM_READY  ||
+        newState == RADIOSTATE_RUIM_READY ||
+        newState == RADIOSTATE_NV_READY) {
+      // The ICC card has become available. Get all the things.
+      RIL.getICCStatus();
+      this.requestNetworkInfo();
+      RIL.getSignalStrength();
+      this.sendDOMMessage({type: "cardstatechange",
+                           cardState: "ready"});
     }
-    if (newState == RADIOSTATE_SIM_LOCKED_OR_ABSENT) {
-      //TODO
+    if (newState == RADIOSTATE_SIM_LOCKED_OR_ABSENT  ||
+        newState == RADIOSTATE_RUIM_LOCKED_OR_ABSENT) {
+      RIL.getICCStatus();
+      this.sendDOMMessage({type: "cardstatechange",
+                           cardState: "unavailable"});
     }
-    //TODO RUIM, NV, GSM/CDMA
 
     let wasOn = this.radioState != RADIOSTATE_OFF &&
                 this.radioState != RADIOSTATE_UNAVAILABLE;
@@ -792,19 +972,29 @@ let Phone = {
     this.radioState = newState;
   },
 
+  onCurrentCalls: function onCurrentCalls(calls) {
+    debug("onCurrentCalls");
+    debug(calls);
+  },
+
+  onCallStateChanged: function onCallStateChanged() {
+    RIL.getCurrentCalls();
+  },
+
   onNetworkStateChanged: function onNetworkStateChanged() {
     debug("Network state changed, re-requesting phone state.");
-    this.requestPhoneState();
+    this.requestNetworkInfo();
   },
 
-  onSIMStatus: function onSIMStatus(simStatus) {
-    debug("SIM card state is " + simStatus.cardState);
-    debug("Universal PIN state is " + simStatus.universalPINState);
-    debug(simStatus);
-    //TODO
+  onICCStatus: function onICCStatus(iccStatus) {
+    debug("SIM card state is " + iccStatus.cardState);
+    debug("Universal PIN state is " + iccStatus.universalPINState);
+    debug(iccStatus);
+    //TODO set to simStatus and figure out state transitions.
+    this.iccStatus = iccStatus; //XXX TODO
   },
 
-  onEnterSIMPIN: function onEnterSIMPIN(response) {
+  onEnterICCPIN: function onEnterICCPIN(response) {
     debug("RIL_REQUEST_ENTER_SIM_PIN returned " + response);
     //TODO
   },
@@ -838,11 +1028,23 @@ let Phone = {
   },
 
   onOperator: function onOperator(operator) {
-    this.operator = operator;
+    if (operator.length < 3) {
+      debug("Expected at least 3 strings for operator.");
+    }
+    if (!this.operator ||
+        this.operator.alphaLong  != operator[0] ||
+        this.operator.alphaShort != operator[1] ||
+        this.operator.numeric    != operator[2]) {
+      this.operator = {alphaLong:  operator[0],
+                       alphaShort: operator[1],
+                       numeric:    operator[2]};
+      this.sendDOMMessage({type: "operatorchange",
+                           operator: this.operator});
+    }
   },
 
   onSignalStrength: function onSignalStrength(strength) {
-    debug("Signal strength " + strength);
+    debug("Signal strength " + JSON.stringify(strength));
     //TODO
   },
 
@@ -856,9 +1058,9 @@ let Phone = {
    */
 
   /**
-   * Request various states from the phone.
+   * Request various states about the network.
    */
-  requestPhoneState: function requestPhoneState() {
+  requestNetworkInfo: function requestNetworkInfo() {
     debug("Requesting phone state");
     //TODO convert to method calls on RIL.
     Buf.simpleRequest(RIL_REQUEST_REGISTRATION_STATE);
@@ -894,13 +1096,28 @@ let Phone = {
 
   /**
    * Handle incoming messages from the main UI thread.
+   * 
+   * @param message
+   *        Object containing the message. Messages are supposed 
    */
-  handleMessage: function handleMessage(message) {
-    //TODO
+  handleDOMMessage: function handleMessage(message) {
+    let method = this[message.method];
+    if (typeof method != "function") {
+      debug("Don't know what to do with message " + JSON.stringify(message));
+      return;
+    }
+    method.apply(this, message.arguments);
   },
+
+  /**
+   * Send messages to the main UI thread.
+   */
+  sendDOMMessage: function sendDOMMessage(message) {
+    postMessage(message, "*");
+  }
 
 };
 
 onmessage = function onmessage(event) {
-  Phone.handleMessage(event.data);
+  Phone.handleDOMMessage(event.data);
 };
