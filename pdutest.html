@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+</head>
+<body>
+  <input id="pdu" type="text" value="07915892208800F0040B915892241883F800009921810170002B0341E211">
+  <button id="parse" onclick="parse(); return false;">Parse PDU</button>
+  <div id="result">  
+  </div>
+  <script type="application/javascript;version=1.8" src="pdu.js"></script>
+  <script type="application/javascript;version=1.8">
+    function parse() {
+      let parsedPDU = PDU.parse(document.getElementById("pdu").value);
+      if(typeof(parsedPDU) != "undefined") {
+        var resultDiv = document.getElementById("result");
+        var resultList = document.createElement("ul");
+        var smsc = document.createElement("li");
+        smsc.innerHTML = "SMSC: " + parsedPDU.SMSC;       
+        var sender = document.createElement("li");
+        sender.innerHTML = "Sender: " + parsedPDU.sender;
+        var message = document.createElement("li");
+        message.innerHTML = "Message: " + parsedPDU.message;
+        var tsv = document.createElement("li");
+        if(typeof(parsedPDU.timestamp) != "undefined") {
+          tsv.innerHTML = "Timestamp: " + parsedPDU.timestamp;
+        }                
+        resultList.appendChild(sender);
+        resultList.appendChild(smsc);
+        resultList.appendChild(message);
+        resultList.appendChild(tsv);
+        resultDiv.appendChild(resultList);   
+      }             
+    }
+  </script>
+</body>
+</html>

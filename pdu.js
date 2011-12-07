@@ -131,7 +131,7 @@ const MAX_LENGTH_7BIT = 160;
  * A detailed description of the PDU Format can be found at 
  * http://www.dreamfabric.com/sms/
  */ 
-let PDUParser =  new function () {
+let PDU =  new function () {
   
   function phoneNumberMap (character) {
     if((character >= '0') && (character <= '9')) return character;
@@ -203,7 +203,9 @@ let PDUParser =  new function () {
   var mCurrent = 0;
   var mPdu = "";
  
-  this.parse = function (pdu) {    
+  // TODO: return error codes instead of false
+  this.parse = function (pdu) {
+    if(typeof(pdu) != "string") return false; 
     mPdu = pdu;
     mPdu = mPdu.split(' ').join('');
     /* SMSC info */
@@ -221,28 +223,29 @@ let PDUParser =  new function () {
     }
     /* First octet of this SMS-DELIVER or SMS-SUBMIT message */
    
-    var firstOctet;
+    let firstOctet;
     // if the sms is of SMS-SUBMIT type it would contain a TP-MR
     if((firstOctet = getOctet()) & PDU_MTI_SMS_SUBMIT )
       var messageReference = getOctet(); // TP-Message-Reference   
 
     /* Sender Address info*/
     // Address length
-    var senderAddressLength = parseHex(getOctet());
+    let senderAddressLength = parseHex(getOctet());
+    if(senderAddressLength <= 0) return false;
     // Type-of-Address
-    var senderTypeOfAddress = getOctet();
+    let senderTypeOfAddress = getOctet();
     if(senderAddressLength % 2 == 1) senderAddressLength += 1;
     var senderNumber = semiOctetToString(getOctet((senderAddressLength / 2)));
-    if((parseHex(senderTypeOfAddress) >> 4) == (PDU_TOA_INTERNATIONAL >> 4))
+    if(senderNumber.length <= 0) return false;
+    if ((parseHex(senderTypeOfAddress) >> 4) == (PDU_TOA_INTERNATIONAL >> 4))
       senderNumber = '+' + senderNumber;
     if(senderNumber.charAt(senderNumber.length -1) == 'F')
-      senderNumber = senderNumber.slice(0,-1);
+      senderNumber = senderNumber.slice(0,-1);    
 
     /* TP-Protocolo-Identifier */
     let protocolIdentifier = getOctet();
 
     /* TP-Data-Coding-Scheme */
-    // TODO: check data coding scheme
     let dataCodingScheme = getOctet();
 
     // SMS of SMS-SUBMIT type contains a TP-Service-Center-Time-Stamp field
@@ -279,9 +282,21 @@ let PDUParser =  new function () {
     if(userDataLength > 0) {
       let userDataOctet = getOctet(userDataLength);
       // Get the user message
-      // TODO: pass encoding according to dataCodingScheme to getUserData
       var userDataString = getUserData(userDataOctet, dataCodingScheme);
-   }    
+    }
+        
+    var ret = {
+      SMSC: smscNumber,
+      sender: senderNumber,
+      message: userDataString           
+    }
+
+    //TODO: use a var instead of repeat AND
+    if(firstOctet & PDU_MTI_SMS_SUBMIT)
+      ret.validity = validityPeriod;
+    else  
+      ret.timestamp = scTimeStampString;
+    return ret;   
   } //this.parse
 
 }
