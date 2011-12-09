@@ -227,13 +227,12 @@ let PDU =  new function () {
             udOctetsArray.push(udBinOctet);           
             udRestArray.push(udBinOctet.substring(0, (index % 8)));           
             udSeptetsArray.push(udBinOctet.substring((index % 8), 8));
-            index += 1;
+            if(index == 7) index = 1; else index += 1;            
           }
           for(let i = 0; i < udRestArray.length; i++) {
             // Parse septets + rest
             if(i % 7 == 0) {
-              if(i != 0) 
-                userData += alph7bit[parseInt(udRestArray[i - 1], 2)];              
+              if(i != 0) userData += alph7bit[parseInt(udRestArray[i - 1], 2)];              
               userData += alph7bit[parseInt(udSeptetsArray[i], 2)]; 
             } else {
               userData += alph7bit[parseInt(udSeptetsArray[i] + udRestArray[i - 1], 2)]; 
@@ -252,9 +251,11 @@ let PDU =  new function () {
   this.parse = function (pdu) {
     if(typeof(pdu) != "string") return false; 
     mPdu = pdu;
+    // Get rid off blank spaces
     mPdu = mPdu.split(' ').join('');
-    /* SMSC info */
-    // TODO: Handle case no SMSC info
+    // Check only hex and dec chars
+    if(mPdu.split("[a-fA-F0-9]").length > 1) return false;
+    // SMSC info
     {
       let smscLength;
       if((smscLength = parseHex(getOctet())) > 0) {          
@@ -266,14 +267,15 @@ let PDU =  new function () {
             smscNumber = smscNumber.slice(0,-1);
       }
     }
-    /* First octet of this SMS-DELIVER or SMS-SUBMIT message */
-   
+
+    // First octet of this SMS-DELIVER or SMS-SUBMIT message   
     let firstOctet;
     // if the sms is of SMS-SUBMIT type it would contain a TP-MR
-    if((firstOctet = getOctet()) & PDU_MTI_SMS_SUBMIT )
-      var messageReference = getOctet(); // TP-Message-Reference   
-
-    /* Sender Address info*/
+    var isSmsSubmit;
+    if(isSmsSubmit = ((firstOctet = getOctet()) & PDU_MTI_SMS_SUBMIT)) 
+      var messageReference = getOctet(); // TP-Message-Reference
+     
+    // - Sender Address info -
     // Address length
     let senderAddressLength = parseHex(getOctet());
     if(senderAddressLength <= 0) return false;
@@ -287,16 +289,16 @@ let PDU =  new function () {
     if(senderNumber.charAt(senderNumber.length -1) == 'F')
       senderNumber = senderNumber.slice(0,-1);    
 
-    /* TP-Protocolo-Identifier */
+    // - TP-Protocolo-Identifier -
     let protocolIdentifier = getOctet();
 
-    /* TP-Data-Coding-Scheme */
+    // - TP-Data-Coding-Scheme -
     let dataCodingScheme = getOctet();
 
     // SMS of SMS-SUBMIT type contains a TP-Service-Center-Time-Stamp field
     // SMS of SMS-DELIVER type contains a TP-Validity-Period octet
-    if(firstOctet & PDU_MTI_SMS_SUBMIT) {
-      /* TP-Validity-Period */
+    if(isSmsSubmit) {
+      //  - TP-Validity-Period -
       //  The Validity Period octet is optional. Depends on the SMS-SUBMIT 
       //  first octet
       //  Validity Period Format. Bit4 and Bit3 specify the TP-VP field 
@@ -310,7 +312,7 @@ let PDU =  new function () {
         var validityPeriod = getOctet();
       //TODO: check validity period
     } else {
-      /* TP-Service-Center-Time-Stamp */
+      // - TP-Service-Center-Time-Stamp -
       let scTimeStamp = semiOctetToString(getOctet(7));
       var scTimeStampString = scTimeStamp.substring(4,6) + "/" +
                               scTimeStamp.substring(2,4) + "/" +
@@ -320,10 +322,10 @@ let PDU =  new function () {
                               scTimeStamp.substring(10,12);
     }
 
-    /* TP-User-Data-Length */
+    // - TP-User-Data-Length -
     let userDataLength = parseHex(getOctet());
 
-    /* TP-User-Data */
+    // - TP-User-Data -
     if(userDataLength > 0) {
       let userDataOctet = getOctet(userDataLength);
       // Get the user message
@@ -336,8 +338,7 @@ let PDU =  new function () {
       message: userDataString           
     }
 
-    //TODO: use a var instead of repeat AND
-    if(firstOctet & PDU_MTI_SMS_SUBMIT)
+    if(isSmsSubmit)
       ret.validity = validityPeriod;
     else  
       ret.timestamp = scTimeStampString;
