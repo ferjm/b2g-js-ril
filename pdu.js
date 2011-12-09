@@ -120,6 +120,22 @@ const PDU_MTI_SMS_DELIVER         = 0x00;
 
 /* User Data max length in octets*/
 const MAX_LENGTH_7BIT = 160;
+
+/* 7bit Default Alphabet: http://dreamfabric.com/sms/default_alphabet.html */
+let alph7bit = new Array('@', '£', '$', '¥', 'è', 'é', 'ù', 'ì', 'ò', 'Ç', 
+                        '\n', 'Ø', 'ø', '\r','Å', 'å','\u0394', '_', 
+                        '\u03a6', '\u0393', '\u039b', '\u03a9', '\u03a0',
+                        '\u03a8', '\u03a3', '\u0398', '\u039e','€', 'Æ',
+                        'æ', 'ß', 'É', ' ', '!', '"', '#', '¤', '%', '&',
+                        '\'', '(', ')','*', '+', ',', '-', '.', '/', '0',
+                        '1', '2', '3', '4', '5', '6', '7','8', '9', ':',
+                        ';', '<', '=', '>', '?', '¡', 'A', 'B', 'C', 'D',
+                        'E','F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 
+                        'O', 'P', 'Q', 'R', 'S','T', 'U', 'V', 'W', 'X', 
+                        'Y', 'Z', 'Ä', 'Ö', 'Ñ', 'Ü', '§', '¿', 'a','b', 
+                        'c','d', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 
+                        'm', 'n', 'o','p', 'q', 'r', 's', 't', 'u', 'v', 
+                        'w', 'x', 'y', 'z', 'ä', 'ö', 'ñ','ü', 'à');
                                     
 /**
  * This object exposes the functionality to parse and serialize PDU strings
@@ -163,13 +179,19 @@ let PDU =  new function () {
     return parseInt("0x" + hex, 16);
   }
 
+  function fillOctet (octet) {
+    while (octet.length < 8) octet = "0" + octet;
+    return octet;
+  }
+
   // User data can be 7 bit (default alphabet) data, 8 bit data, or 16 bit 
   // (UCS2) data.This function currently supports only the default alphabet.
   // TODO: Add support for 8bit and 16bit data
   function getUserData(udOctet, dataCodingScheme) {
+    let userData = "";
     // Get encoding scheme according to http://www.dreamfabric.com/sms/dcs.html    
     let encoding = 7; // 7 bit is the default encoding
-    let dataCodingSchemeHex;
+    let dataCodingSchemeHex;    
     switch((dataCodingSchemeHex = parseHex(dataCodingScheme)) & 0xC0) {      
       case 0x0:
         // bits 7..4 = 00xx
@@ -189,15 +211,38 @@ let PDU =  new function () {
         break;
     }    
     
-    switch(encoding) {
+    switch(encoding) {      
       case 7:
         // 7 bit encoding allows 140 octets, which means 160 characters 
         // ((140x8) / 7 = 160 chars)
-        if(udOctet.length <= MAX_LENGTH_7BIT) {
-          // TODO: Decode octets into 7bit data          
+        if(udOctet.length <= MAX_LENGTH_7BIT) {                 
+          let udOctetsArray = new Array();
+          let udRestArray = new Array();
+          let udSeptetsArray = new Array();
+          let index = 1;
+          for(let i = 0; i < udOctet.length; i += 2) {
+            // Split into binary octets, septets and rest bits
+            // XXX: could probably be done faster with split + regex
+            let udBinOctet = fillOctet(parseHex(udOctet.substring(i, i + 2)).toString(2));
+            udOctetsArray.push(udBinOctet);           
+            udRestArray.push(udBinOctet.substring(0, (index % 8)));           
+            udSeptetsArray.push(udBinOctet.substring((index % 8), 8));
+            index += 1;
+          }
+          for(let i = 0; i < udRestArray.length; i++) {
+            // Parse septets + rest
+            if(i % 7 == 0) {
+              if(i != 0) 
+                userData += alph7bit[parseInt(udRestArray[i - 1], 2)];              
+              userData += alph7bit[parseInt(udSeptetsArray[i], 2)]; 
+            } else {
+              userData += alph7bit[parseInt(udSeptetsArray[i] + udRestArray[i - 1], 2)]; 
+            }
+          } 
         } else return false;
         break;
     }
+    return userData;
   }
   
   var mCurrent = 0;
