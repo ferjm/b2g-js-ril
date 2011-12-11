@@ -141,17 +141,19 @@ let alph7bit = ['@', '£', '$', '¥', 'è', 'é', 'ù', 'ì', 'ò', 'Ç',
  * This object exposes the functionality to parse and serialize PDU strings
  *
  * The PDU string contains not only the message, but also a lot of
- * meta-information  about the sender, his SMS service center, the time stamp
+ * meta-information about the sender, his SMS service center, the time stamp
  * etc. It is all in the form of hexa-decimal octets or decimal semi-octets.
  *
  * A detailed description of the PDU Format can be found at
  * http://www.dreamfabric.com/sms/
  */
-let PDU =  new function () {
+let PDU = new function () {
 
-  function phoneNumberMap (character) {
-    if((character >= '0') && (character <= '9')) return character;
-    switch(character.toUpperCase()) {
+  function phoneNumberMap(character) {
+    if ((character >= '0') && (character <= '9')) {
+      return character;
+    }
+    switch (character.toUpperCase()) {
       case '*': return 'A';
       case '#': return 'B';
       case 'A': return 'C';
@@ -161,26 +163,30 @@ let PDU =  new function () {
     }
   }
 
-  function semiOctetToString (semiOctet) {
+  function semiOctetToString(semiOctet) {
     let out = "";
-    for(let i = 0; i < semiOctet.length; i+=2) {
+    for (let i = 0; i < semiOctet.length; i += 2) {
       let tmp = semiOctet.substring(i, i+2);
       out += phoneNumberMap(tmp.charAt(1)) + phoneNumberMap(tmp.charAt(0));
     }
     return out;
   }
 
-  function getOctet (n) {
-    if(typeof n == "undefined") n = 1;
+  function getOctet(n) {
+    if (typeof n == "undefined") {
+      n = 1;
+    };
     return mPdu.substring(mCurrent, mCurrent += n*2);
   }
 
-  function parseHex (hex) {
+  function parseHex(hex) {
     return parseInt("0x" + hex, 16);
   }
 
-  function fillOctet (octet) {
-    while (octet.length < 8) octet = "0" + octet;
+  function fillOctet(octet) {
+    while (octet.length < 8) {
+      octet = "0" + octet;
+    }
     return octet;
   }
 
@@ -192,20 +198,28 @@ let PDU =  new function () {
     // Get encoding scheme according to http://www.dreamfabric.com/sms/dcs.html
     let encoding = 7; // 7 bit is the default encoding
     let dataCodingSchemeHex;
-    switch((dataCodingSchemeHex = parseHex(dataCodingScheme)) & 0xC0) {
+    switch ((dataCodingSchemeHex = parseHex(dataCodingScheme)) & 0xC0) {
       case 0x0:
         // bits 7..4 = 00xx
-        switch(dataCodingSchemeHex & 0xC) {
-          case 0x4: encoding = 8; break;
-          case 0x8: encoding = 16; break;
+        switch (dataCodingSchemeHex & 0xC) {
+          case 0x4:
+            encoding = 8;
+            break;
+          case 0x8:
+            encoding = 16;
+            break;
         }
         break;
       case 0xC0:
         // bits 7..4 = 11xx
-        switch(dataCodingSchemeHex & 0x30) {
-          case 0x20: encoding = 16; break;
+        switch (dataCodingSchemeHex & 0x30) {
+          case 0x20:
+            encoding = 16;
+            break;
           case 0x30:
-            if(!dataCodingScheme & 0x4) encoding = 8;
+            if (!dataCodingScheme & 0x4) {
+              encoding = 8;
+            }
             break;
         }
         break;
@@ -215,30 +229,38 @@ let PDU =  new function () {
       case 7:
         // 7 bit encoding allows 140 octets, which means 160 characters
         // ((140x8) / 7 = 160 chars)
-        if(udOctet.length <= MAX_LENGTH_7BIT) {
+        if (udOctet.length <= MAX_LENGTH_7BIT) {
           let udOctetsArray = new Array();
           let udRestArray = new Array();
           let udSeptetsArray = new Array();
           let index = 1;
-          for(let i = 0; i < udOctet.length; i += 2) {
+          for (let i = 0; i < udOctet.length; i += 2) {
             // Split into binary octets, septets and rest bits
             // XXX: could probably be done faster with split + regex
             let udBinOctet = fillOctet(parseHex(udOctet.substring(i, i + 2)).toString(2));
             udOctetsArray.push(udBinOctet);
             udRestArray.push(udBinOctet.substring(0, (index % 8)));
             udSeptetsArray.push(udBinOctet.substring((index % 8), 8));
-            if(index == 7) index = 1; else index += 1;
+            if (index == 7) {
+              index = 1;
+            } else {
+              index += 1;
+            }
           }
-          for(let i = 0; i < udRestArray.length; i++) {
+          for (let i = 0; i < udRestArray.length; i++) {
             // Parse septets + rest
-            if(i % 7 == 0) {
-              if(i != 0) userData += alph7bit[parseInt(udRestArray[i - 1], 2)];
+            if (i % 7 == 0) {
+              if (i != 0) {
+                userData += alph7bit[parseInt(udRestArray[i - 1], 2)];
+              }
               userData += alph7bit[parseInt(udSeptetsArray[i], 2)];
             } else {
               userData += alph7bit[parseInt(udSeptetsArray[i] + udRestArray[i - 1], 2)];
             }
           }
-        } else return false;
+        } else {
+          return false;
+        }
         break;
     }
     return userData;
@@ -248,23 +270,30 @@ let PDU =  new function () {
   var mPdu = "";
 
   // TODO: return error codes instead of false
+  let PDU = {};
   this.parse = function (pdu) {
-    if(typeof(pdu) != "string") return false;
+    if (typeof(pdu) != "string") {
+      return false;
+    }
     mPdu = pdu;
     // Get rid off blank spaces
     mPdu = mPdu.split(' ').join('');
     // Check only hex and dec chars
-    if(mPdu.split("[a-fA-F0-9]").length > 1) return false;
+    if (mPdu.split("[a-fA-F0-9]").length > 1) {
+      return false;
+    }
     // SMSC info
     {
       let smscLength;
-      if((smscLength = parseHex(getOctet())) > 0) {
+      if ((smscLength = parseHex(getOctet())) > 0) {
           let smscTypeOfAddress = getOctet();
           var smscNumber = semiOctetToString(getOctet(((smscLength) - 1)));
-          if((parseHex(smscTypeOfAddress) >> 4) == (PDU_TOA_INTERNATIONAL >> 4))
+          if ((parseHex(smscTypeOfAddress) >> 4) == (PDU_TOA_INTERNATIONAL >> 4)) {
             smscNumber = '+' + smscNumber;
-          if(smscNumber.charAt(smscNumber.length - 1) == 'F')
+          }
+          if (smscNumber.charAt(smscNumber.length - 1) == 'F') {
             smscNumber = smscNumber.slice(0,-1);
+          }
       }
     }
 
@@ -272,22 +301,31 @@ let PDU =  new function () {
     let firstOctet;
     // if the sms is of SMS-SUBMIT type it would contain a TP-MR
     var isSmsSubmit;
-    if(isSmsSubmit = ((firstOctet = getOctet()) & PDU_MTI_SMS_SUBMIT))
+    if (isSmsSubmit = ((firstOctet = getOctet()) & PDU_MTI_SMS_SUBMIT)) {
       var messageReference = getOctet(); // TP-Message-Reference
+    }
 
     // - Sender Address info -
     // Address length
     let senderAddressLength = parseHex(getOctet());
-    if(senderAddressLength <= 0) return false;
+    if (senderAddressLength <= 0) {
+      return false;
+    }
     // Type-of-Address
     let senderTypeOfAddress = getOctet();
-    if(senderAddressLength % 2 == 1) senderAddressLength += 1;
+    if (senderAddressLength % 2 == 1) {
+      senderAddressLength += 1;
+    }
     var senderNumber = semiOctetToString(getOctet((senderAddressLength / 2)));
-    if(senderNumber.length <= 0) return false;
-    if ((parseHex(senderTypeOfAddress) >> 4) == (PDU_TOA_INTERNATIONAL >> 4))
+    if (senderNumber.length <= 0) {
+      return false;
+    }
+    if ((parseHex(senderTypeOfAddress) >> 4) == (PDU_TOA_INTERNATIONAL >> 4)) {
       senderNumber = '+' + senderNumber;
-    if(senderNumber.charAt(senderNumber.length -1) == 'F')
-      senderNumber = senderNumber.slice(0,-1);
+    }
+    if (senderNumber.charAt(senderNumber.length -1) == 'F') {
+      senderNumber = senderNumber.slice(0, -1);
+    }
 
     // - TP-Protocolo-Identifier -
     let protocolIdentifier = getOctet();
@@ -297,7 +335,7 @@ let PDU =  new function () {
 
     // SMS of SMS-SUBMIT type contains a TP-Service-Center-Time-Stamp field
     // SMS of SMS-DELIVER type contains a TP-Validity-Period octet
-    if(isSmsSubmit) {
+    if (isSmsSubmit) {
       //  - TP-Validity-Period -
       //  The Validity Period octet is optional. Depends on the SMS-SUBMIT
       //  first octet
@@ -308,8 +346,9 @@ let PDU =  new function () {
       //    1   0 : TP-VP field present. Relative format (one octet)
       //    0   1 : TP-VP field present. Enhanced format (7 octets)
       //    1   1 : TP-VP field present. Absolute format (7 octets)
-      if(firstOctet & (PDU_VPF_ABSOLUTE | PDU_VPF_RELATIVE | PDU_VPF_ENHANCED))
+      if (firstOctet & (PDU_VPF_ABSOLUTE | PDU_VPF_RELATIVE | PDU_VPF_ENHANCED)) {
         var validityPeriod = getOctet();
+      }
       //TODO: check validity period
     } else {
       // - TP-Service-Center-Time-Stamp -
@@ -326,7 +365,7 @@ let PDU =  new function () {
     let userDataLength = parseHex(getOctet());
 
     // - TP-User-Data -
-    if(userDataLength > 0) {
+    if (userDataLength > 0) {
       let userDataOctet = getOctet(userDataLength);
       // Get the user message
       var userDataString = getUserData(userDataOctet, dataCodingScheme);
@@ -336,13 +375,14 @@ let PDU =  new function () {
       SMSC: smscNumber,
       sender: senderNumber,
       message: userDataString
-    }
+    };
 
-    if(isSmsSubmit)
+    if (isSmsSubmit) {
       ret.validity = validityPeriod;
-    else
+    } else {
       ret.timestamp = scTimeStampString;
+    }
     return ret;
-  } //this.parse
+  };
 
-}
+};
