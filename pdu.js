@@ -232,7 +232,7 @@ let PDU = new function () {
   }
 
   function getOctet(n) {
-    if (typeof n == "undefined") {
+    if (n == undefined) {
       n = 1;
     };
     return mPdu.substring(mCurrent, mCurrent += n*2);
@@ -286,9 +286,9 @@ let PDU = new function () {
         // 7 bit encoding allows 140 octets, which means 160 characters
         // ((140x8) / 7 = 160 chars)
         if (udOctet.length <= MAX_LENGTH_7BIT) {
-          let udOctetsArray = new Array();
-          let udRestArray = new Array();
-          let udSeptetsArray = new Array();
+          let udOctetsArray = [];
+          let udRestArray = [];
+          let udSeptetsArray = [];
           let index = 1;
           for (let i = 0; i < udOctet.length; i += 2) {
             // Split into binary octets, septets and rest bits
