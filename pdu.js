@@ -180,14 +180,11 @@ let PDU = new function () {
   }
 
   function parseHex(hex) {
-    return parseInt("0x" + hex, 16);
+    return parseInt(hex, 16);
   }
 
   function fillOctet(octet) {
-    while (octet.length < 8) {
-      octet = "0" + octet;
-    }
-    return octet;
+    return ("00000000" + octet).slice(-8);
   }
 
   // User data can be 7 bit (default alphabet) data, 8 bit data, or 16 bit
