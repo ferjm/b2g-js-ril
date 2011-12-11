@@ -60,11 +60,13 @@ gRadioInterface = new nsRadioInterface(window);
 navigator.mozTelephony = new Telephony(window);
 
 navigator.mozTelephony.onradiostatechange = function (event) {
-  console.log("New Radio State in the DOM: " + this.radioState);
+  console.log("New Radio State in the DOM: " +
+              JSON.stringify(this.radioState));
 }
 
 navigator.mozTelephony.onsignalstrengthchange = function (event) {
-  console.log("New Radio State in the DOM: " + this.signalStrength);
+  console.log("New Radio State in the DOM: " +
+              JSON.stringify(this.signalStrength));
   if (this.signalStrength.gsmSignalStrength == 99) {
     return;
   }
