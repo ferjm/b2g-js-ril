@@ -122,20 +122,79 @@ const PDU_MTI_SMS_DELIVER         = 0x00;
 const MAX_LENGTH_7BIT = 160;
 
 /* 7bit Default Alphabet: http://dreamfabric.com/sms/default_alphabet.html */
-let alph7bit = ['@', '£', '$', '¥', 'è', 'é', 'ù', 'ì', 'ò', 'Ç',
-                '\n', 'Ø', 'ø', '\r','Å', 'å','\u0394', '_',
-                '\u03a6', '\u0393', '\u039b', '\u03a9', '\u03a0',
-                '\u03a8', '\u03a3', '\u0398', '\u039e','€', 'Æ',
-                'æ', 'ß', 'É', ' ', '!', '"', '#', '¤', '%', '&',
-                '\'', '(', ')','*', '+', ',', '-', '.', '/', '0',
-                '1', '2', '3', '4', '5', '6', '7','8', '9', ':',
-                ';', '<', '=', '>', '?', '¡', 'A', 'B', 'C', 'D',
-                'E','F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N',
-                'O', 'P', 'Q', 'R', 'S','T', 'U', 'V', 'W', 'X',
-                'Y', 'Z', 'Ä', 'Ö', 'Ñ', 'Ü', '§', '¿', 'a','b',
-                'c','d', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l',
-                'm', 'n', 'o','p', 'q', 'r', 's', 't', 'u', 'v',
-                'w', 'x', 'y', 'z', 'ä', 'ö', 'ñ','ü', 'à'];
+const alphabet_7bit = [
+  "@",      // COMMERCIAL AT
+  "\xa3",   // POUND SIGN
+  "$",      // DOLLAR SIGN
+  "\xa5",   // YEN SIGN
+  "\xe8",   // LATIN SMALL LETTER E WITH GRAVE
+  "\xe9",   // LATIN SMALL LETTER E WITH ACUTE
+  "\xf9",   // LATIN SMALL LETTER U WITH GRAVE
+  "\xec",   // LATIN SMALL LETTER I WITH GRAVE
+  "\xf2",   // LATIN SMALL LETTER O WITH GRAVE
+  "\xc7",   // LATIN CAPITAL LETTER C WITH CEDILLA
+  "\n",     // LINE FEED
+  "\xd8",   // LATIN CAPITAL LETTER O WITH STROKE
+  "\xf8",   // LATIN SMALL LETTER O WITH STROKE
+  "\r",     // CARRIAGE RETURN
+  "\xc5",   // LATIN CAPITAL LETTER A WITH RING ABOVE
+  "\xe5",   // LATIN SMALL LETTER A WITH RING ABOVE
+  "\u0394", // GREEK CAPITAL LETTER DELTA
+  "_",      // LOW LINE
+  "\u03a6", // GREEK CAPITAL LETTER PHI
+  "\u0393", // GREEK CAPITAL LETTER GAMMA
+  "\u039b", // GREEK CAPITAL LETTER LAMBDA
+  "\u03a9", // GREEK CAPITAL LETTER OMEGA
+  "\u03a0", // GREEK CAPITAL LETTER PI
+  "\u03a8", // GREEK CAPITAL LETTER PSI
+  "\u03a3", // GREEK CAPITAL LETTER SIGMA
+  "\u0398", // GREEK CAPITAL LETTER THETA
+  "\u039e", // GREEK CAPITAL LETTER XI
+  "\u20ac", // (escape to extension table)
+  "\xc6",   // LATIN CAPITAL LETTER AE
+  "\xe6",   // LATIN SMALL LETTER AE
+  "\xdf",   // LATIN SMALL LETTER SHARP S (German)
+  "\xc9",   // LATIN CAPITAL LETTER E WITH ACUTE
+  " ",      // SPACE
+  "!",      // EXCLAMATION MARK
+  "\"",     // QUOTATION MARK
+  "#",      // NUMBER SIGN
+  "\xa4",   // CURRENCY SIGN
+  "%",      // PERCENT SIGN
+  "&",      // AMPERSAND
+  "'",      // APOSTROPHE
+  "(",      // LEFT PARENTHESIS
+  ")",      // RIGHT PARENTHESIS
+  "*",      // ASTERISK
+  "+",      // PLUS SIGN
+  ",",      // COMMA
+  "-",      // HYPHEN-MINUS
+  ".",      // FULL STOP
+  "/",      // SOLIDUS (SLASH)
+  "0", "1", "2", "3", "4", "5", "6", "7", "8", "9",
+  ":",      // COLON
+  ";",      // SEMICOLON
+  "<",      // LESS-THAN SIGN
+  "=",      // EQUALS SIGN
+  ">",      // GREATER-THAN SIGN
+  "?",      // QUESTION MARK
+  "\xa1",   // INVERTED EXCLAMATION MARK
+  "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M",
+  "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z",
+  "\xc4",   // LATIN CAPITAL LETTER A WITH DIAERESIS
+  "\xd6",   // LATIN CAPITAL LETTER O WITH DIAERESIS
+  "\xd1",   // LATIN CAPITAL LETTER N WITH TILDE
+  "\xdc",   // LATIN CAPITAL LETTER U WITH DIAERESIS
+  "\xa7",   // SECTION SIGN
+  "\xbf",   // INVERTED QUESTION MARK
+  "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m",
+  "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z",
+  "\xe4",   // LATIN SMALL LETTER A WITH DIAERESIS
+  "\xf6",   // LATIN SMALL LETTER O WITH DIAERESIS
+  "\xf1",   // LATIN SMALL LETTER N WITH TILDE
+  "\xfc",   // LATIN SMALL LETTER U WITH DIAERESIS
+  "\xe0"    // LATIN SMALL LETTER A WITH GRAVE
+];
 
 /**
  * This object exposes the functionality to parse and serialize PDU strings
@@ -248,11 +307,11 @@ let PDU = new function () {
             // Parse septets + rest
             if (i % 7 == 0) {
               if (i != 0) {
-                userData += alph7bit[parseInt(udRestArray[i - 1], 2)];
+                userData += alphabet_7bit[parseInt(udRestArray[i - 1], 2)];
               }
-              userData += alph7bit[parseInt(udSeptetsArray[i], 2)];
+              userData += alphabet_7bit[parseInt(udSeptetsArray[i], 2)];
             } else {
-              userData += alph7bit[parseInt(udSeptetsArray[i] + udRestArray[i - 1], 2)];
+              userData += alphabet_7bit[parseInt(udSeptetsArray[i] + udRestArray[i - 1], 2)];
             }
           }
         } else {
