@@ -337,6 +337,28 @@ let PDU = new function () {
     return userData;
   }
 
+  function serializeAddress(address) {
+    // International format
+    var addressFormat;
+    if (address[0] == '+') {
+      addressFormat = PDU_TOA_INTERNATIONAL | PDU_TOA_ISDN; // 91
+      address = address.substring(1);
+    } else {
+      addressFormat = PDU_TOA_ISDN; // 81
+    }
+    // Add a trailing 'F'
+    if (address.length % 2 == 0) {
+      address += 'F';
+    }
+    // Convert into string
+    var address = semiOctetToString(address);
+    var ret = {
+      addressFormat: addressFormat,
+      address: address
+    };
+    return ret;
+  }
+
   var mCurrent = 0;
   var mPdu = "";
 
@@ -468,20 +490,27 @@ let PDU = new function () {
   this.getSubmitPdu = function(scAddress,
                               destinationAddress,
                               message,
+                              validity,
                               encoding) {
-    // SMSC
+    // - SMSC -
     if (scAddress != 0) {
-      // International format
-      var smscFormat;
-      if (scAddress[0] == '+') {
-        smscFormat = PDU_TOA_INTERNATIONAL;
-        scAddress = scAddress.substring(1);
-      }
-      // Add a trailing 'F'
-      if(scAddress.length % 2 == 0) scAddress += 'F';
-      // Convert into string
-      var smsc = semiOctetToString(scAddress);
+      smsc = serializeAddress(scAddress);
     }
+
+    // - PDU-TYPE and MR-
+    let firstOctet;
+    if (validity == undefined) {
+      firstOctet = "1100";
+    } else {
+      firstOctet = "0100";
+    }
+
+    // - Destination Address -
+    if (destinationAddress == undefined) {
+      debug("PDU error: no destination address provided");
+      return null;
+    }
+    smsReceiver = serializeAddress(destinationAddress);
   };
 
 };
