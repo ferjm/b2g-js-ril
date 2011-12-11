@@ -943,9 +943,18 @@ RIL[UNSOLICITED_RESPONSE_CALL_STATE_CHANGED] = function UNSOLICITED_RESPONSE_CAL
 RIL[UNSOLICITED_RESPONSE_NETWORK_STATE_CHANGED] = function UNSOLICITED_RESPONSE_NETWORK_STATE_CHANGED() {
   Phone.onNetworkStateChanged();
 };
-RIL[UNSOLICITED_RESPONSE_NEW_SMS] = null;
-RIL[UNSOLICITED_RESPONSE_NEW_SMS_STATUS_REPORT] = null;
-RIL[UNSOLICITED_RESPONSE_NEW_SMS_ON_SIM] = null;
+RIL[UNSOLICITED_RESPONSE_NEW_SMS] = function UNSOLICITED_RESPONSE_NEW_SMS(length) {
+  let info = Buf.readString();
+  Phone.onNewSMS(info);
+};
+RIL[UNSOLICITED_RESPONSE_NEW_SMS_STATUS_REPORT] = function UNSOLICITED_RESPONSE_NEW_SMS_STATUS_REPORT(length) {
+  let info = Buf.readStringList();
+  Phone.onNewSMSStatusReport(info);
+};
+RIL[UNSOLICITED_RESPONSE_NEW_SMS_ON_SIM] = function UNSOLICITED_RESPONSE_NEW_SMS_ON_SIM(length) {
+  let info = Buf.readUint32List();
+  Phone.onNewSMSOnSIM(message);
+};
 RIL[UNSOLICITED_ON_USSD] = null;
 RIL[UNSOLICITED_ON_USSD_REQUEST] = null;
 RIL[UNSOLICITED_NITZ_TIME_RECEIVED] = null;
@@ -1270,6 +1279,18 @@ let Phone = {
     //TODO
   },
 
+  onNewSMS: function onNewSMS(message) {
+    debug("onNewSMS: " + info);
+    //TODO
+  },
+
+  onNewSMSStatusReport: function onNewSMSStatusReport(info) {
+    //TODO
+  },
+
+  onNewSMSOnSIM: function onNewSMSOnSIM(info) {
+    //TODO
+  },
 
   /**
    * Outgoing requests to the RIL. These can be triggered from the
