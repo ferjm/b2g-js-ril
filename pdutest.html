@@ -4,8 +4,11 @@
 </head>
 <body>
   <input id="pdu" type="text" value="07915892208800F0040B915892241883F800009921810170002B0341E211">
-  <button id="parse" onclick="parse(); return false;">Parse PDU</button>
+  <button id="parseButton" onclick="parse(); return false;">Parse PDU</button>
+  <button id="testButton" onclick="runBlackBoxTests(); return false;">Run tests</button>
   <div id="result">  
+  </div>
+  <div id="tests">  
   </div>
   <script type="application/javascript;version=1.8" src="pdu.js"></script>
   <script type="application/javascript;version=1.8">
@@ -30,6 +33,269 @@
         resultList.appendChild(tsv);
         resultDiv.appendChild(resultList);   
       }             
+    }
+
+    function AssertException(message) { this.message = message; }
+    AssertException.prototype.toString = function () {
+      return 'AssertException: ' + this.message;
+    };
+
+    function assert(exp, message) {
+      if (!exp) {
+        throw new AssertException(message);
+      }
+    }
+
+    function printTest(testId) { 
+      let testsDiv = document.getElementById("tests");
+      let testp = document.createElement("p");
+      testp.setAttribute("id",testId);
+      testsDiv.appendChild(testp);
+      let test = document.createElement("h2");
+      let testStr = document.createTextNode(testId);
+      test.appendChild(testStr);
+      testp.appendChild(test);
+    }
+
+    function printTestError(testId, errorMsg) {
+      let test = document.getElementById(testId);
+      let error = document.createElement("h4");
+      let errorStr = document.createTextNode(errorMsg);
+      error.style.color = "red";
+      error.appendChild(errorStr);
+      test.appendChild(error);
+    }
+
+    function printTestOk(testId) {
+      let test = document.getElementById(testId);
+      let ok = document.createElement("h4");
+      ok.style.color = "green";
+      let okStr = document.createTextNode("OK");
+      ok.appendChild(okStr);
+      test.appendChild(ok);
+    }
+
+    function runBlackBoxTests() {
+      {
+        // TEST 1
+        // SMS-SUBMIT
+        // SMSC: international 11 chars
+        // Receiver: international 11 chars
+        // Alphabet size: 7
+        // Message class: 0
+        // "Hi there..."
+        printTest("Test1");
+        let parsed = PDU.parse("07914366060088F801000B914366161177F700000BC834888E2ECBCB2E970B");
+        try {
+          assert(parsed != false, "parsed = false");
+          assert(parsed.SMSC == "+34666000888", "Wrong SMSC: " + parsed.SMSC);
+          assert(parsed.sender == "+34666111777", "Wrong receiver: " + parsed.sender);
+          assert(parsed.message == "Hi there...", "Wrong message: " + parsed.message);
+          printTestOk("Test1");
+        } catch(err) {
+          printTestError("Test1",err.message);
+        }
+      }
+      {
+        // TEST 2
+        // SMS-SUBMIT
+        // SMSC: national 9 chars
+        // Receiver: international 11 chars
+        // Alphabet size: 7
+        // Message class: 0
+        // "Hi there..."
+        printTest("Test2");
+        let parsed = PDU.parse("069166060088F801000B914366161177F700000BC834888E2ECBCB2E970B");
+        try {
+          assert(parsed != false, "parsed = false");
+          assert(parsed.SMSC == "666000888", "Wrong SMSC: " + parsed.SMSC);
+          assert(parsed.sender == "+34666111777", "Wrong receiver: " + parsed.sender);
+          assert(parsed.message == "Hi there...", "Wrong message: " + parsed.message);
+          printTestOk("Test2");
+        } catch(err) {
+          printTestError("Test2",err.message);
+        }
+      }
+      {
+        // TEST 3
+        // SMS-SUBMIT
+        // SMSC: national 9 chars
+        // Receiver: national 9 chars
+        // Alphabet size: 7
+        // Message class: 0
+        // "Hi there..."
+        printTest("Test3");
+        let parsed = PDU.parse("069166060088F80100099166161177F700000BC834888E2ECBCB2E970B");
+        try {
+          assert(parsed != false, "parsed = false");
+          assert(parsed.SMSC == "666000888", "Wrong SMSC: " + parsed.SMSC);
+          assert(parsed.sender == "666111777", "Wrong receiver: " + parsed.sender);
+          assert(parsed.message == "Hi there...", "Wrong message: " + parsed.message);
+          printTestOk("Test3");
+        } catch(err) {
+          printTestError("Test3",err.message);
+        }
+      }
+      {
+        // TEST 4
+        // SMS-SUBMIT
+        // SMSC: international 5 chars
+        // Receiver: national 9 chars
+        // Alphabet size: 7
+        // Message class: 0
+        // "Hi there..."
+        printTest("Test4");
+        let parsed = PDU.parse("04914366F60100099166161177F700000BC834888E2ECBCB2E970B");
+        try {
+          assert(parsed != false, "parsed = false");
+          assert(parsed.SMSC == "+34666", "Wrong SMSC: " + parsed.SMSC);
+          assert(parsed.sender == "666111777", "Wrong receiver: " + parsed.sender);
+          assert(parsed.message == "Hi there...", "Wrong message: " + parsed.message);
+          printTestOk("Test4");
+        } catch(err) {
+          printTestError("Test4",err.message);
+        }
+      }
+      {
+        // TEST 5
+        // SMS-SUBMIT
+        // SMSC: international 5 chars
+        // Receiver: international 5 chars
+        // Alphabet size: 7
+        // Message class: 0
+        // "Hi there..."
+        printTest("Test5");
+        let parsed = PDU.parse("04914366F6010005914366F600000BC834888E2ECBCB2E970B");
+        try {
+          assert(parsed != false, "parsed = false");
+          assert(parsed.SMSC == "+34666", "Wrong SMSC: " + parsed.SMSC);
+          assert(parsed.sender == "+34666", "Wrong receiver: " + parsed.sender);
+          assert(parsed.message == "Hi there...", "Wrong message: " + parsed.message);
+          printTestOk("Test5");
+        } catch(err) {
+          printTestError("Test5",err.message);
+        }
+      }
+      {
+        // TEST 6
+        // SMS-SUBMIT
+        // SMSC: null
+        // Receiver: international 11 chars
+        // Alphabet size: 7
+        // Message class: 0
+        // "Hi there..."
+        printTest("Test6");
+        let parsed = PDU.parse("0001000B914366060033F300000BC834888E2ECBCB2E970B");
+        try {
+          assert(parsed != false, "parsed = false");
+          assert(parsed.SMSC == "undefined", "Wrong SMSC: " + parsed.SMSC);
+          assert(parsed.sender == "+34666000333", "Wrong receiver: " + parsed.sender);
+          assert(parsed.message == "Hi there...", "Wrong message: " + parsed.message);
+          printTestOk("Test6");
+        } catch(err) {
+          printTestError("Test6",err.message);
+        }
+      }
+      {
+        // TEST 7
+        // SMS-SUBMIT
+        // SMSC: international 11 chars
+        // Receiver: null
+        // Alphabet size: 7
+        // Message class: 0
+        // "Hi there..."
+        printTest("Test7");
+        let parsed = PDU.parse("07914366060033F30100009100000BC834888E2ECBCB2E970B");
+        try {
+          assert(parsed == false, "parsed != false");
+          printTestOk("Test7");
+        } catch(err) {
+          printTestError("Test7",err.message);
+        }
+      }
+      {
+        // TEST 8
+        // SMS-SUBMIT
+        // SMSC: international 11 chars
+        // Receiver: international 11 chars
+        // Alphabet size: 8
+        // Message class: 0
+        // "Hi there..."
+        printTest("Test8");
+        let parsed = PDU.parse("07914366060033F301000B914366060055F500040B48692074686572652E2E2E");
+        try {
+          assert(parsed == false, "parsed != false");
+          printTestOk("Test8");
+        } catch(err) {
+          printTestError("Test8",err.message);
+        }
+      }
+      {
+        // TEST 9
+        // SMS-SUBMIT
+        // SMSC: international 11 chars
+        // Receiver: international 11 chars
+        // Alphabet size: 16
+        // Message class: 0
+        // "Hi there..."
+        printTest("Test9");
+        let parsed = PDU.parse("07914366060033F301000B914366060055F500081600480069002000740068006500720065002E002E002E");
+        try {
+          assert(parsed == false, "parsed != false");
+          printTestOk("Test9");
+        } catch(err) {
+          printTestError("Test9",err.message);
+        }
+      }
+      {
+        // TEST 10
+        // Empty pdu
+        printTest("Test10");
+        let parsed = PDU.parse("");
+        try {
+          assert(parsed == false, "parsed != false");
+          printTestOk("Test10");
+        } catch(err) {
+          printTestError("Test10",err.message);
+        }
+      }
+      {
+        // TEST 11
+        // SMS-SUBMIT with spaces
+        // SMSC: international 11 chars
+        // Receiver: international 11 chars
+        // Alphabet size: 7
+        // Message class: 0
+        // "Hi there..."
+        printTest("Test11");
+        let parsed = PDU.parse("   079143 66060088F801000B914366  161177F70 0000BC834888E2ECBCB2E970     B  ");
+        try {
+          assert(parsed != false, "parsed = false");
+          assert(parsed.SMSC == "+34666000888", "Wrong SMSC: " + parsed.SMSC);
+          assert(parsed.sender == "+34666111777", "Wrong receiver: " + parsed.sender);
+          assert(parsed.message == "Hi there...", "Wrong message: " + parsed.message);
+          printTestOk("Test11");
+        } catch(err) {
+          printTestError("Test11",err.message);
+        }
+      }
+      {
+        // TEST 12
+        // SMS-SUBMIT with not allowed characters
+        // SMSC: international 11 chars
+        // Receiver: international 11 chars
+        // Alphabet size: 7
+        // Message class: 0
+        // "Hi there..."
+        printTest("Test12");
+        let parsed = PDU.parse("xyz07914366060088F801000B914366161177F700000BC834888E2ECBCB2E970B");
+        try {
+          assert(parsed == false, "parsed != false");
+          printTestOk("Test12");
+        } catch(err) {
+          printTestError("Test12",err.message);
+        }
+      }
     }
   </script>
 </body>

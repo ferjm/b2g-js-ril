@@ -246,14 +246,16 @@ let PDU =  new function () {
   
   var mCurrent = 0;
   var mPdu = "";
- 
-  // TODO: return error codes instead of false
+  
+  // Given a PDU string, this function returns a PDU object containing the 
+  // SMSC, sender, message and timestamp or validity period 
+  // TODO: return error codes instead of false  
   this.parse = function (pdu) {
     if(typeof(pdu) != "string") return false; 
     mPdu = pdu;
-    // Get rid off blank spaces
+    // Get rid of blank spaces
     mPdu = mPdu.split(' ').join('');
-    // Check only hex and dec chars
+    // Allow only hexadecimal
     if(mPdu.split("[a-fA-F0-9]").length > 1) return false;
     // SMSC info
     {
@@ -343,6 +345,27 @@ let PDU =  new function () {
     else  
       ret.timestamp = scTimeStampString;
     return ret;   
-  } //this.parse
+  }, //this.parse
+
+  /* Get a SMS-SUBMIT PDU for a destination address and a message using the
+  // specified encoding.
+  this.getSubmitPdu = function(scAddress, 
+                              destinationAddress, 
+                              message,
+                              encoding) {
+    // SMSC 
+    if(scAddress != 0) {
+      // International format
+      var smscFormat;
+      if(scAddress[0] == '+') {
+        smscFormat = PDU_TOA_INTERNATIONAL;
+        scAddress = scAddress.substring(1);
+      }
+      // Add a trailing 'F'
+      if(scAddress.length % 2 == 0) scAddress += 'F';
+      // Convert into string
+      var smsc = semiOctetToString(scAddress);
+    }
+  }*/
 
 }
