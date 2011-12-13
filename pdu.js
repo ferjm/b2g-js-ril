@@ -345,7 +345,7 @@ let PDU = new function () {
   function serializeAddress(address) {
     if(address == undefined) {
       return "00";
-    }    
+    }
     // International format
     let addressFormat;
     if (address[0] == '+') {
@@ -602,13 +602,13 @@ let PDU = new function () {
         //TODO:
         break;
     }
-    
-    return smsc + "" + 
-          firstOctetAndMR + "" + 
-          smsReceiver + "" + 
-          protocolID + "" + 
-          dcs + "" + 
-          userDataLength + "" + 
+
+    return smsc + "" +
+          firstOctetAndMR + "" +
+          smsReceiver + "" +
+          protocolID + "" +
+          dcs + "" +
+          userDataLength + "" +
           userData;
   };
 
