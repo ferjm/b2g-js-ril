@@ -252,10 +252,6 @@ let PDU = new function () {
     return parseInt(hex, 16);
   }
 
-  function fillOctet(octet) {
-    return ("00000000" + octet).slice(-8);
-  }
-
   /**
    * User data can be 7 bit (default alphabet) data, 8 bit data, or 16 bit
    * (UCS2) data.This function currently supports only the default alphabet.
@@ -311,7 +307,8 @@ let PDU = new function () {
         for (let i = 0; i < udOctet.length; i += 2) {
           // Split into binary octets, septets and rest bits
           // XXX: could probably be done faster with split + regex
-          let udBinOctet = fillOctet(parseHex(udOctet.substring(i, i + 2)).toString(2));
+          let udBinOctet = ("00000000" + (parseHex(udOctet.substring(i, i + 2)).
+                            toString(2))).slice(-8);
           udOctetsArray.push(udBinOctet);
           udRestArray.push(udBinOctet.substring(0, (index % 8)));
           udSeptetsArray.push(udBinOctet.substring((index % 8), 8));
