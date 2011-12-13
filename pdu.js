@@ -218,25 +218,11 @@ const alphabet_7bit = [
  */
 let PDU = new function () {
 
-  function phoneNumberMap(character) {
-    if ((character >= '0') && (character <= '9')) {
-      return character;
-    }
-    switch (character.toUpperCase()) {
-      case '*': return 'A';
-      case '#': return 'B';
-      case 'A': return 'C';
-      case 'B': return 'D';
-      case 'C': return 'E';
-      default:  return 'F';
-    }
-  }
-
   function semiOctetToString(semiOctet) {
     let out = "";
     for (let i = 0; i < semiOctet.length; i += 2) {
       let tmp = semiOctet.substring(i, i+2);
-      out += phoneNumberMap(tmp.charAt(1)) + phoneNumberMap(tmp.charAt(0));
+      out += tmp.charAt(1) + tmp.charAt(0);
     }
     return out;
   }
