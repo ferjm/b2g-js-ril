@@ -248,10 +248,6 @@ let PDU = new function () {
     return mPdu.substring(mCurrent, mCurrent += n*2);
   }
 
-  function parseHex(hex) {
-    return parseInt(hex, 16);
-  }
-
   /**
    * User data can be 7 bit (default alphabet) data, 8 bit data, or 16 bit
    * (UCS2) data.This function currently supports only the default alphabet.
@@ -260,7 +256,7 @@ let PDU = new function () {
     let userData = "";
     // Get encoding scheme according to http://www.dreamfabric.com/sms/dcs.html
     let encoding = 7; // 7 bit is the default encoding
-    let dataCodingSchemeHex = parseHex(dataCodingScheme);
+    let dataCodingSchemeHex = parseInt(dataCodingScheme, 16);
     switch (dataCodingSchemeHex & 0xC0) {
       case 0x0:
         // bits 7..4 = 00xx
@@ -307,7 +303,7 @@ let PDU = new function () {
         for (let i = 0; i < udOctet.length; i += 2) {
           // Split into binary octets, septets and rest bits
           // XXX: could probably be done faster with split + regex
-          let udBinOctet = ("00000000" + (parseHex(udOctet.substring(i, i + 2)).
+          let udBinOctet = ("00000000" + (parseInt(udOctet.substring(i, i + 2), 16).
                             toString(2))).slice(-8);
           udOctetsArray.push(udBinOctet);
           udRestArray.push(udBinOctet.substring(0, (index % 8)));
@@ -342,7 +338,7 @@ let PDU = new function () {
     return userData;
   }
 
-  function serializeAddress(address) {
+  function serializeAddress(address, smsc) {
     if(address == undefined) {
       return "00";
     }
@@ -374,8 +370,8 @@ let PDU = new function () {
     return null;
   }
 
-  var mCurrent = 0;
-  var mPdu = "";
+  let mCurrent = 0;
+  let mPdu = "";
 
   // Given a PDU string, this function returns a PDU object containing the
   // SMSC, sender, message and timestamp or validity period
@@ -391,12 +387,12 @@ let PDU = new function () {
     }
     mCurrent = 0;
     // SMSC info
-    let smscLength = parseHex(getOctet());
+    let smscLength = parseInt(getOctet(), 16);
     let smscNumber;
     if (smscLength > 0) {
       let smscTypeOfAddress = getOctet();
       smscNumber = semiOctetToString(getOctet(((smscLength) - 1)));
-      if ((parseHex(smscTypeOfAddress) >> 4) == (PDU_TOA_INTERNATIONAL >> 4)) {
+      if ((parseInt(smscTypeOfAddress, 16) >> 4) == (PDU_TOA_INTERNATIONAL >> 4)) {
         smscNumber = '+' + smscNumber;
       }
       if (smscNumber.charAt(smscNumber.length - 1) == 'F') {
@@ -415,7 +411,7 @@ let PDU = new function () {
 
     // - Sender Address info -
     // Address length
-    let senderAddressLength = parseHex(getOctet());
+    let senderAddressLength = parseInt(getOctet(), 16);
     if (senderAddressLength <= 0) {
       debug("PDU error: invalid sender address length: " + senderAddressLength);
       return null;
@@ -425,12 +421,12 @@ let PDU = new function () {
     if (senderAddressLength % 2 == 1) {
       senderAddressLength += 1;
     }
-    var senderNumber = semiOctetToString(getOctet((senderAddressLength / 2)));
+    let senderNumber = semiOctetToString(getOctet((senderAddressLength / 2)));
     if (senderNumber.length <= 0) {
       debug("PDU error: no sender number provided");
       return null;
     }
-    if ((parseHex(senderTypeOfAddress) >> 4) == (PDU_TOA_INTERNATIONAL >> 4)) {
+    if ((parseInt(senderTypeOfAddress, 16) >> 4) == (PDU_TOA_INTERNATIONAL >> 4)) {
       senderNumber = '+' + senderNumber;
     }
     if (senderNumber.charAt(senderNumber.length -1) == 'F') {
@@ -473,7 +469,7 @@ let PDU = new function () {
     }
 
     // - TP-User-Data-Length -
-    let userDataLength = parseHex(getOctet());
+    let userDataLength = parseInt(getOctet(), 16);
 
     // - TP-User-Data -
     if (userDataLength > 0) {
@@ -486,7 +482,7 @@ let PDU = new function () {
       }
     }
 
-    var ret = {
+    let ret = {
       SMSC: smscNumber,
       sender: senderNumber,
       message: userDataString
