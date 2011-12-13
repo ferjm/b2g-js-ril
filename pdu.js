@@ -123,6 +123,14 @@ const PDU_MTI_SMS_DELIVER         = 0x00;
 /* User Data max length in octets*/
 const MAX_LENGTH_7BIT = 160;
 
+/* DCS - Data Coding Scheme */
+const PDU_DCS_MSG_CODING_7BITS_ALPHABET = 0xF0;
+const PDU_DCS_MSG_CODING_8BITS_ALPHABET = 0xF4;
+const PDU_DCS_MSG_CODING_16BITS_ALPHABET= 0x08;
+const PDU_DCS_MSG_CLASS_ME_SPECIFIC     = 0xF1;
+const PDU_DCS_MSG_CLASS_SIM_SPECIFIC    = 0xF2;
+const PDU_DCS_MSG_CLASS_TE_SPECIFIC     = 0xF3;
+
 /* 7bit Default Alphabet: http://dreamfabric.com/sms/default_alphabet.html */
 const alphabet_7bit = [
   "@",      // COMMERCIAL AT
@@ -359,6 +367,16 @@ let PDU = new function () {
     return ret;
   }
 
+  function charTo7BitCode(c) {
+    for (let i = 0; i < alphabet_7bit.length; i++) {
+      if (alphabet_7bit[i] == c) {
+        return i;
+      }
+    }
+    debug("PDU warning: No character found in default 7 bit alphabet for " + c);
+    return null;
+  }
+
   var mCurrent = 0;
   var mPdu = "";
 
@@ -491,8 +509,10 @@ let PDU = new function () {
                               destinationAddress,
                               message,
                               validity,
+                              messageClass,
                               encoding) {
     // - SMSC -
+    let smsc;
     if (scAddress != 0) {
       smsc = serializeAddress(scAddress);
     }
@@ -510,7 +530,80 @@ let PDU = new function () {
       debug("PDU error: no destination address provided");
       return null;
     }
-    smsReceiver = serializeAddress(destinationAddress);
+    let smsReceiver = serializeAddress(destinationAddress);
+
+    // - Protocol Identifier -
+    let protocolID = "00";
+
+    // - Data coding scheme -
+    // For now it assumes bits 7..4 = 1111 except for the 16 bits use case
+    let dcs = 0x00;
+    switch (messageClass) {
+      case 1:
+        // Message class 1 - ME Specific
+        dcs |= PDU_DCS_MSG_CLASS_ME_SPECIFIC;
+        break;
+      case 2:
+        // Message class 2 - SIM Specific
+        dcs |= PDU_DCS_MSG_CLASS_SIM_SPECIFIC;
+        break;
+      case 3:
+        // Message class 3 - TE Specific
+        dcs |= PDU_DCS_MSG_CLASS_TE_SPECIFIC;
+        break;
+    }
+    switch (encoding) {
+      case 7:
+        dcs |= PDU_DCS_MSG_CODING_7BITS_ALPHABET;
+        break;
+      case 8:
+        dcs |= PDU_DCS_MSG_CODING_8BITS_ALPHABET;
+        break;
+      case 16:
+        dcs |= PDU_DCS_MSG_CODING_16BITS_ALPHABET;
+        break;
+    }
+
+    // - Validity Period -
+    // TODO: Not supported for the moment
+
+    // - User Data Length -
+    // Phones allows empty sms
+    if (message == undefined) {
+      debug("PDU warning: message is empty");
+    }
+    let userDataLength = message.length.toString(16);
+
+    // - User Data -
+    let userData = "";
+    switch(encoding) {
+      case 7:
+        let octet = "";
+        let octetst = "";
+        let octetnd = ""; 
+        for (let i = 0; i < message.length; i++) {
+          if (i == message.length) {
+            if (octetnd.length) {
+              userData = userData + parseInt(octetnd, 2).toString(16);
+            }
+          }
+          let charcode = charTo7BitCode(message.charAt(i)).toString(2);
+          octet = ("00000000" + charcode).slice(-7);
+          if (i != 0 && i % 8 != 0) {
+            octetst = octet.substring(7 - (i) % 8);
+            userData = userData + parseInt((octetst + octetnd), 2).toString(16).toUpperCase();
+          }
+          octetnd = octet.substring(0, 7 - (i) % 8);
+        }
+        break;
+      case 8:
+        //TODO:
+        break;
+      case 16:
+        //TODO:
+        break;
+    }
+    debug(userData);
   };
 
 };

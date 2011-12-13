@@ -7,7 +7,13 @@
   <input id="pdu1" type="text" value="07915892208800F0040B915892241883F800009921810170002B0341E211">
   <button id="parseButton" onclick="parse(); return false;">Parse PDU</button>
   <button id="testButton" onclick="runBlackBoxTests(); return false;">Run tests</button>
-  <div id="result">  
+  <p>
+  <input id="receiverId" type="text" value="+34666000888">
+  <input id="smsc" type="text" value="+34666222111">
+  <input id="msg" type="text" value="Hi there...">
+  <button id="testSerializerButton" onclick="serialize(); return false">Serialize</button>
+  </p>
+  <div id="result">
   </div>
   <div id="tests">  
   </div>
@@ -302,6 +308,18 @@
           printTestError("Test12",err.message);
         }
       }
+    }
+
+    function serialize() {
+      let scAddress = document.getElementById("smsc").value;
+      let destinationAddress = document.getElementById("receiverId").value;
+      let message = document.getElementById("msg").value;
+      let serialized = PDU.getSubmitPdu(scAddress,
+                                        destinationAddress,
+                                        message,
+                                        null,
+                                        0,
+                                        7);
     }
   </script>
 </body>
