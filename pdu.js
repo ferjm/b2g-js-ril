@@ -346,8 +346,11 @@ let PDU = new function () {
   }
 
   function serializeAddress(address) {
+    if(address == undefined) {
+      return "00";
+    }    
     // International format
-    var addressFormat;
+    let addressFormat;
     if (address[0] == '+') {
       addressFormat = PDU_TOA_INTERNATIONAL | PDU_TOA_ISDN; // 91
       address = address.substring(1);
@@ -359,12 +362,9 @@ let PDU = new function () {
       address += 'F';
     }
     // Convert into string
-    var address = semiOctetToString(address);
-    var ret = {
-      addressFormat: addressFormat,
-      address: address
-    };
-    return ret;
+    let address = semiOctetToString(address);
+    let addressLength = ("00" + parseInt((addressFormat.toString(16) + "" + address).length / 2)).slice(-2);
+    return addressLength + "" + addressFormat.toString(16) + "" + address;
   }
 
   function charTo7BitCode(c) {
@@ -515,14 +515,16 @@ let PDU = new function () {
     let smsc;
     if (scAddress != 0) {
       smsc = serializeAddress(scAddress);
+    } else {
+      scAddress = "00";
     }
 
     // - PDU-TYPE and MR-
-    let firstOctet;
+    let firstOctetAndMR;
     if (validity == undefined) {
-      firstOctet = "1100";
+      firstOctetAndMR = "1100";
     } else {
-      firstOctet = "0100";
+      firstOctetAndMR = "0100";
     }
 
     // - Destination Address -
@@ -580,7 +582,7 @@ let PDU = new function () {
       case 7:
         let octet = "";
         let octetst = "";
-        let octetnd = ""; 
+        let octetnd = "";
         for (let i = 0; i < message.length; i++) {
           if (i == message.length) {
             if (octetnd.length) {
@@ -603,7 +605,14 @@ let PDU = new function () {
         //TODO:
         break;
     }
-    debug(userData);
+    
+    return smsc + "" + 
+          firstOctetAndMR + "" + 
+          smsReceiver + "" + 
+          protocolID + "" + 
+          dcs + "" + 
+          userDataLength + "" + 
+          userData;
   };
 
 };
