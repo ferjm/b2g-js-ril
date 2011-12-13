@@ -518,10 +518,10 @@ let PDU = new function () {
 
     // - PDU-TYPE and MR-
     let firstOctetAndMR;
-    if (validity == undefined) {
-      firstOctetAndMR = "1100";
-    } else {
+    if (validity) {
       firstOctetAndMR = "0100";
+    } else {
+      firstOctetAndMR = "1100";
     }
 
     // - Destination Address -

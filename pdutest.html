@@ -26,6 +26,8 @@
   </div>
   <div id="result">
   </div>
+  <div id="serializerResult">
+  </div>
   <div id="tests">
   </div>
   <script type="application/javascript;version=1.8" src="pdu.js"></script>
@@ -57,7 +59,6 @@
         resultDiv.appendChild(resultList);
       }
     }
-
     function AssertException(message) { this.message = message; }
     AssertException.prototype.toString = function () {
       return 'AssertException: ' + this.message;
@@ -331,6 +332,13 @@
                                         null,
                                         0,
                                         7);
+      let resultDiv = document.getElementById("serializerResult");
+      let resultp = document.createElement("p");
+      resultDiv.appendChild(resultp);
+      let result = document.createElement("h5");
+      let resultStr = document.createTextNode(serialized);
+      result.appendChild(resultStr);
+      resultp.appendChild(result);
     }
   </script>
 </body>
