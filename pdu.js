@@ -123,6 +123,14 @@ const PDU_MTI_SMS_DELIVER         = 0x00;
 /* User Data max length in octets*/
 const MAX_LENGTH_7BIT = 160;
 
+/* DCS - Data Coding Scheme */
+const PDU_DCS_MSG_CODING_7BITS_ALPHABET = 0xF0;
+const PDU_DCS_MSG_CODING_8BITS_ALPHABET = 0xF4;
+const PDU_DCS_MSG_CODING_16BITS_ALPHABET= 0x08;
+const PDU_DCS_MSG_CLASS_ME_SPECIFIC     = 0xF1;
+const PDU_DCS_MSG_CLASS_SIM_SPECIFIC    = 0xF2;
+const PDU_DCS_MSG_CLASS_TE_SPECIFIC     = 0xF3;
+
 /* 7bit Default Alphabet: http://dreamfabric.com/sms/default_alphabet.html */
 const alphabet_7bit = [
   "@",      // COMMERCIAL AT
@@ -210,25 +218,11 @@ const alphabet_7bit = [
  */
 let PDU = new function () {
 
-  function phoneNumberMap(character) {
-    if ((character >= '0') && (character <= '9')) {
-      return character;
-    }
-    switch (character.toUpperCase()) {
-      case '*': return 'A';
-      case '#': return 'B';
-      case 'A': return 'C';
-      case 'B': return 'D';
-      case 'C': return 'E';
-      default:  return 'F';
-    }
-  }
-
   function semiOctetToString(semiOctet) {
     let out = "";
     for (let i = 0; i < semiOctet.length; i += 2) {
       let tmp = semiOctet.substring(i, i+2);
-      out += phoneNumberMap(tmp.charAt(1)) + phoneNumberMap(tmp.charAt(0));
+      out += tmp.charAt(1) + tmp.charAt(0);
     }
     return out;
   }
@@ -240,14 +234,6 @@ let PDU = new function () {
     return mPdu.substring(mCurrent, mCurrent += n*2);
   }
 
-  function parseHex(hex) {
-    return parseInt(hex, 16);
-  }
-
-  function fillOctet(octet) {
-    return ("00000000" + octet).slice(-8);
-  }
-
   /**
    * User data can be 7 bit (default alphabet) data, 8 bit data, or 16 bit
    * (UCS2) data.This function currently supports only the default alphabet.
@@ -256,7 +242,7 @@ let PDU = new function () {
     let userData = "";
     // Get encoding scheme according to http://www.dreamfabric.com/sms/dcs.html
     let encoding = 7; // 7 bit is the default encoding
-    let dataCodingSchemeHex = parseHex(dataCodingScheme);
+    let dataCodingSchemeHex = parseInt(dataCodingScheme, 16);
     switch (dataCodingSchemeHex & 0xC0) {
       case 0x0:
         // bits 7..4 = 00xx
@@ -303,7 +289,8 @@ let PDU = new function () {
         for (let i = 0; i < udOctet.length; i += 2) {
           // Split into binary octets, septets and rest bits
           // XXX: could probably be done faster with split + regex
-          let udBinOctet = fillOctet(parseHex(udOctet.substring(i, i + 2)).toString(2));
+          let udBinOctet = ("00000000" + (parseInt(udOctet.substring(i, i + 2), 16).
+                            toString(2))).slice(-8);
           udOctetsArray.push(udBinOctet);
           udRestArray.push(udBinOctet.substring(0, (index % 8)));
           udSeptetsArray.push(udBinOctet.substring((index % 8), 8));
@@ -337,9 +324,12 @@ let PDU = new function () {
     return userData;
   }
 
-  function serializeAddress(address) {
+  function serializeAddress(address, smsc) {
+    if(address == undefined) {
+      return "00";
+    }
     // International format
-    var addressFormat;
+    let addressFormat;
     if (address[0] == '+') {
       addressFormat = PDU_TOA_INTERNATIONAL | PDU_TOA_ISDN; // 91
       address = address.substring(1);
@@ -351,16 +341,23 @@ let PDU = new function () {
       address += 'F';
     }
     // Convert into string
-    var address = semiOctetToString(address);
-    var ret = {
-      addressFormat: addressFormat,
-      address: address
-    };
-    return ret;
+    let address = semiOctetToString(address);
+    let addressLength = ("00" + parseInt((addressFormat.toString(16) + "" + address).length / 2)).slice(-2);
+    return addressLength + "" + addressFormat.toString(16) + "" + address;
   }
 
-  var mCurrent = 0;
-  var mPdu = "";
+  function charTo7BitCode(c) {
+    for (let i = 0; i < alphabet_7bit.length; i++) {
+      if (alphabet_7bit[i] == c) {
+        return i;
+      }
+    }
+    debug("PDU warning: No character found in default 7 bit alphabet for " + c);
+    return null;
+  }
+
+  let mCurrent = 0;
+  let mPdu = "";
 
   // Given a PDU string, this function returns a PDU object containing the
   // SMSC, sender, message and timestamp or validity period
@@ -376,12 +373,12 @@ let PDU = new function () {
     }
     mCurrent = 0;
     // SMSC info
-    let smscLength = parseHex(getOctet());
+    let smscLength = parseInt(getOctet(), 16);
     let smscNumber;
     if (smscLength > 0) {
       let smscTypeOfAddress = getOctet();
       smscNumber = semiOctetToString(getOctet(((smscLength) - 1)));
-      if ((parseHex(smscTypeOfAddress) >> 4) == (PDU_TOA_INTERNATIONAL >> 4)) {
+      if ((parseInt(smscTypeOfAddress, 16) >> 4) == (PDU_TOA_INTERNATIONAL >> 4)) {
         smscNumber = '+' + smscNumber;
       }
       if (smscNumber.charAt(smscNumber.length - 1) == 'F') {
@@ -400,7 +397,7 @@ let PDU = new function () {
 
     // - Sender Address info -
     // Address length
-    let senderAddressLength = parseHex(getOctet());
+    let senderAddressLength = parseInt(getOctet(), 16);
     if (senderAddressLength <= 0) {
       debug("PDU error: invalid sender address length: " + senderAddressLength);
       return null;
@@ -410,12 +407,12 @@ let PDU = new function () {
     if (senderAddressLength % 2 == 1) {
       senderAddressLength += 1;
     }
-    var senderNumber = semiOctetToString(getOctet((senderAddressLength / 2)));
+    let senderNumber = semiOctetToString(getOctet((senderAddressLength / 2)));
     if (senderNumber.length <= 0) {
       debug("PDU error: no sender number provided");
       return null;
     }
-    if ((parseHex(senderTypeOfAddress) >> 4) == (PDU_TOA_INTERNATIONAL >> 4)) {
+    if ((parseInt(senderTypeOfAddress, 16) >> 4) == (PDU_TOA_INTERNATIONAL >> 4)) {
       senderNumber = '+' + senderNumber;
     }
     if (senderNumber.charAt(senderNumber.length -1) == 'F') {
@@ -458,7 +455,7 @@ let PDU = new function () {
     }
 
     // - TP-User-Data-Length -
-    let userDataLength = parseHex(getOctet());
+    let userDataLength = parseInt(getOctet(), 16);
 
     // - TP-User-Data -
     if (userDataLength > 0) {
@@ -471,7 +468,7 @@ let PDU = new function () {
       }
     }
 
-    var ret = {
+    let ret = {
       SMSC: smscNumber,
       sender: senderNumber,
       message: userDataString
@@ -491,18 +488,22 @@ let PDU = new function () {
                               destinationAddress,
                               message,
                               validity,
+                              messageClass,
                               encoding) {
     // - SMSC -
+    let smsc;
     if (scAddress != 0) {
       smsc = serializeAddress(scAddress);
+    } else {
+      scAddress = "00";
     }
 
     // - PDU-TYPE and MR-
-    let firstOctet;
-    if (validity == undefined) {
-      firstOctet = "1100";
+    let firstOctetAndMR;
+    if (validity) {
+      firstOctetAndMR = "0100";
     } else {
-      firstOctet = "0100";
+      firstOctetAndMR = "1100";
     }
 
     // - Destination Address -
@@ -510,7 +511,87 @@ let PDU = new function () {
       debug("PDU error: no destination address provided");
       return null;
     }
-    smsReceiver = serializeAddress(destinationAddress);
+    let smsReceiver = serializeAddress(destinationAddress);
+
+    // - Protocol Identifier -
+    let protocolID = "00";
+
+    // - Data coding scheme -
+    // For now it assumes bits 7..4 = 1111 except for the 16 bits use case
+    let dcs = 0x00;
+    switch (messageClass) {
+      case 1:
+        // Message class 1 - ME Specific
+        dcs |= PDU_DCS_MSG_CLASS_ME_SPECIFIC;
+        break;
+      case 2:
+        // Message class 2 - SIM Specific
+        dcs |= PDU_DCS_MSG_CLASS_SIM_SPECIFIC;
+        break;
+      case 3:
+        // Message class 3 - TE Specific
+        dcs |= PDU_DCS_MSG_CLASS_TE_SPECIFIC;
+        break;
+    }
+    switch (encoding) {
+      case 7:
+        dcs |= PDU_DCS_MSG_CODING_7BITS_ALPHABET;
+        break;
+      case 8:
+        dcs |= PDU_DCS_MSG_CODING_8BITS_ALPHABET;
+        break;
+      case 16:
+        dcs |= PDU_DCS_MSG_CODING_16BITS_ALPHABET;
+        break;
+    }
+
+    // - Validity Period -
+    // TODO: Not supported for the moment
+
+    // - User Data Length -
+    // Phones allows empty sms
+    if (message == undefined) {
+      debug("PDU warning: message is empty");
+    }
+    let userDataLength = message.length.toString(16);
+
+    // - User Data -
+    let userData = "";
+    switch(encoding) {
+      case 7:
+        let octet = "";
+        let octetst = "";
+        let octetnd = "";
+        for (let i = 0; i < message.length; i++) {
+          if (i == message.length) {
+            if (octetnd.length) {
+              userData = userData + parseInt(octetnd, 2).toString(16);
+            }
+          }
+          let charcode = charTo7BitCode(message.charAt(i)).toString(2);
+          octet = ("00000000" + charcode).slice(-7);
+          if (i != 0 && i % 8 != 0) {
+            octetst = octet.substring(7 - (i) % 8);
+            userData = userData + parseInt((octetst + octetnd), 2).toString(16).toUpperCase();
+          }
+          octetnd = octet.substring(0, 7 - (i) % 8);
+        }
+        break;
+      case 8:
+        //TODO:
+        break;
+      case 16:
+        //TODO:
+        break;
+    }
+
+    return smsc + "" +
+          firstOctetAndMR + "" +
+          smsReceiver + "" +
+          protocolID + "" +
+          dcs + "" +
+          userDataLength + "" +
+          userData;
   };
 
 };

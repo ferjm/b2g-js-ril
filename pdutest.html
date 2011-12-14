@@ -3,13 +3,32 @@
 <head>
 </head>
 <body>
-  <input id="pdu" type="text" value="0791889653784434040c91889678674542000011211181027023044f74380d"> 
-  <input id="pdu1" type="text" value="07915892208800F0040B915892241883F800009921810170002B0341E211">
-  <button id="parseButton" onclick="parse(); return false;">Parse PDU</button>
-  <button id="testButton" onclick="runBlackBoxTests(); return false;">Run tests</button>
-  <div id="result">  
+  <div>
+    <input id="pdu" type="text" value="0791889653784434040c91889678674542000011211181027023044f74380d">
+    <input id="pdu1" type="text" value="07915892208800F0040B915892241883F800009921810170002B0341E211">
+    <button id="parseButton" onclick="parse(); return false;">Parse PDU</button>
+    <button id="testButton" onclick="runBlackBoxTests(); return false;">Run tests</button>
   </div>
-  <div id="tests">  
+  <div>
+    <p>
+      <label for="receiverId">Receiver</label>
+      <input id="receiverId" type="text" value="+34666000888">
+    </p>
+    <p>
+      <label for="smsc">SMSC</label>
+      <input id="smsc" type="text" value="+34666222111">
+    </p>
+    <p>
+      <label for="msg">Message</label>
+      <input id="msg" type="text" value="Hi there...">
+    </p>
+    <button id="testSerializerButton" onclick="serialize(); return false">Serialize</button>
+  </div>
+  <div id="result">
+  </div>
+  <div id="serializerResult">
+  </div>
+  <div id="tests">
   </div>
   <script type="application/javascript;version=1.8" src="pdu.js"></script>
   <script type="application/javascript;version=1.8">
@@ -24,7 +43,7 @@
         var resultDiv = document.getElementById("result");
         var resultList = document.createElement("ul");
         var smsc = document.createElement("li");
-        smsc.innerHTML = "SMSC: " + parsedPDU.SMSC;       
+        smsc.innerHTML = "SMSC: " + parsedPDU.SMSC;
         var sender = document.createElement("li");
         sender.innerHTML = "Sender: " + parsedPDU.sender;
         var message = document.createElement("li");
@@ -32,15 +51,14 @@
         var tsv = document.createElement("li");
         if(typeof(parsedPDU.timestamp) != "undefined") {
           tsv.innerHTML = "Timestamp: " + parsedPDU.timestamp;
-        }                
+        }
         resultList.appendChild(sender);
         resultList.appendChild(smsc);
         resultList.appendChild(message);
         resultList.appendChild(tsv);
-        resultDiv.appendChild(resultList);   
-      }             
+        resultDiv.appendChild(resultList);
+      }
     }
-
     function AssertException(message) { this.message = message; }
     AssertException.prototype.toString = function () {
       return 'AssertException: ' + this.message;
@@ -52,7 +70,7 @@
       }
     }
 
-    function printTest(testId) { 
+    function printTest(testId) {
       let testsDiv = document.getElementById("tests");
       let testp = document.createElement("p");
       testp.setAttribute("id",testId);
@@ -302,6 +320,25 @@
           printTestError("Test12",err.message);
         }
       }
+    }
+
+    function serialize() {
+      let scAddress = document.getElementById("smsc").value;
+      let destinationAddress = document.getElementById("receiverId").value;
+      let message = document.getElementById("msg").value;
+      let serialized = PDU.getSubmitPdu(scAddress,
+                                        destinationAddress,
+                                        message,
+                                        null,
+                                        0,
+                                        7);
+      let resultDiv = document.getElementById("serializerResult");
+      let resultp = document.createElement("p");
+      resultDiv.appendChild(resultp);
+      let result = document.createElement("h5");
+      let resultStr = document.createTextNode(serialized);
+      result.appendChild(resultStr);
+      resultp.appendChild(result);
     }
   </script>
 </body>
