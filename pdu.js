@@ -218,11 +218,13 @@ const alphabet_7bit = [
  */
 let PDU = new function () {
 
+  /**
+   * Semi octets are decimal. Each pairs of digits needs to be swapped.
+   */
   function semiOctetToString(semiOctet) {
     let out = "";
     for (let i = 0; i < semiOctet.length; i += 2) {
-      let tmp = semiOctet.substring(i, i+2);
-      out += tmp.charAt(1) + tmp.charAt(0);
+      out += semiOctet.charAt(i + 1) + semiOctet.charAt(i);
     }
     return out;
   }
