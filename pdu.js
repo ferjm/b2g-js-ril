@@ -588,20 +588,6 @@ let PDU = new function () {
     // - Data coding scheme -
     // For now it assumes bits 7..4 = 1111 except for the 16 bits use case
     let dcs = 0;
-    switch (messageClass) {
-      case 1:
-        // Message class 1 - ME Specific
-        dcs |= PDU_DCS_MSG_CLASS_ME_SPECIFIC;
-        break;
-      case 2:
-        // Message class 2 - SIM Specific
-        dcs |= PDU_DCS_MSG_CLASS_SIM_SPECIFIC;
-        break;
-      case 3:
-        // Message class 3 - TE Specific
-        dcs |= PDU_DCS_MSG_CLASS_TE_SPECIFIC;
-        break;
-    }
     switch (encoding) {
       case 7:
         dcs |= PDU_DCS_MSG_CODING_7BITS_ALPHABET;
