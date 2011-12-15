@@ -327,7 +327,7 @@ let PDU = new function () {
   }
 
   function serializeAddress(address, smsc) {
-    if(address == undefined) {
+    if (address == undefined) {
       return "00";
     }
     // International format
@@ -339,12 +339,19 @@ let PDU = new function () {
       addressFormat = PDU_TOA_ISDN; // 81
     }
     // Add a trailing 'F'
-    if (address.length % 2 == 0) {
+    let addressLength = address.length;
+    if (addressLength % 2 != 0) {
       address += 'F';
     }
     // Convert into string
     let address = semiOctetToString(address);
-    let addressLength = ("00" + parseInt((addressFormat.toString(16) + "" + address).length / 2)).slice(-2);
+    // Not sure why, but the addressLength is handled in a different way
+    // if it is an smsc address
+    if (smsc) {
+      addressLength = ("00" + parseInt((addressFormat.toString(16) + "" + address).length / 2)).slice(-2);
+    } else {
+      addressLength = ("00" + addressLength.toString(16)).slice(-2).toUpperCase();
+    }
     return addressLength + "" + addressFormat.toString(16) + "" + address;
   }
 
@@ -495,7 +502,7 @@ let PDU = new function () {
     // - SMSC -
     let smsc;
     if (scAddress != 0) {
-      smsc = serializeAddress(scAddress);
+      smsc = serializeAddress(scAddress, true);
     } else {
       scAddress = "00";
     }
