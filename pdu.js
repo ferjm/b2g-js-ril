@@ -368,9 +368,15 @@ let PDU = new function () {
   let mCurrent = 0;
   let mPdu = "";
 
-  // Given a PDU string, this function returns a PDU object containing the
-  // SMSC, sender, message and timestamp or validity period
-  // TODO: return error codes instead of false
+  /**
+  * Public API
+  */
+
+  /**
+  * Given a PDU string, this function returns a PDU object containing the
+  * SMSC, sender, message and timestamp or validity period
+  * TODO: return error codes instead of false
+  */
   this.parse = function (pdu) {
     mPdu = pdu;
     // Get rid of blank spaces
@@ -489,10 +495,22 @@ let PDU = new function () {
       ret.timestamp = scTimeStampString;
     }
     return ret;
-  }; //this.parse
+  };
 
-  /** Get a SMS-SUBMIT PDU for a destination address and a message using the
+  /**
+  *   Get a SMS-SUBMIT PDU for a destination address and a message using the
   *   specified encoding.
+  *
+  *   @param scAddress
+  *          String containing the address (number) of the SMS Service Center
+  *   @param destinationAddress
+  *          String containing the address (number) of the SMS receiver
+  *   @param message
+  *          String containing the message to be sent as user data
+  *   @param validity
+  *          TBD
+  *   @param udhi
+  *          User Data Header information
   *
   *   SMS-SUBMIT Format
   *   -----------------
@@ -509,7 +527,6 @@ let PDU = new function () {
   this.getSubmitPdu = function(scAddress,
                               destinationAddress,
                               message,
-                              messageClass,
                               encoding,
                               validity,
                               udhi) {
