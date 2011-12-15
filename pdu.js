@@ -491,29 +491,72 @@ let PDU = new function () {
     return ret;
   }; //this.parse
 
-  // Get a SMS-SUBMIT PDU for a destination address and a message using the
-  // specified encoding.
+  /** Get a SMS-SUBMIT PDU for a destination address and a message using the
+  *   specified encoding.
+  *
+  *   SMS-SUBMIT Format
+  *   -----------------
+  *
+  *   SMSCA - Service Center Address - 1 to 10 octets
+  *   PDU Type & Message Reference - 1 octet
+  *   DA - Destination Address - 2 to 12 octets
+  *   PID - Protocol Identifier - 1 octet
+  *   DCS - Data Coding Scheme - 1 octet
+  *   VP - Validity Period - 0, 1 or 7 octets
+  *   UDL - User Data Length - 1 octet
+  *   UD - User Data - 140 octets
+  */
   this.getSubmitPdu = function(scAddress,
                               destinationAddress,
                               message,
-                              validity,
                               messageClass,
-                              encoding) {
-    // - SMSC -
-    let smsc;
+                              encoding,
+                              validity,
+                              udhi) {
+    // - SMSCA -
+    let smsca;
     if (scAddress != 0) {
-      smsc = serializeAddress(scAddress, true);
+      smsca = serializeAddress(scAddress, true);
     } else {
       scAddress = "00";
     }
 
     // - PDU-TYPE and MR-
-    let firstOctetAndMR;
+
+    // +--------+----------+---------+---------+--------+---------+
+    // | RP (1) | UDHI (1) | SRR (1) | VPF (2) | RD (1) | MTI (2) |
+    // +--------+----------+---------+---------+--------+---------+
+    // RP:    0   Reply path parameter is not set
+    //        1   Reply path parameter is set
+    // UDHI:  0   The UD Field contains only the short message
+    //        1   The beginning of the UD field contains a header in adittion
+    //            of the short message
+    // SRR:   0   A status report is not requested
+    //        1   A status report is requested
+    // VPF:   bit4  bit3
+    //        0     0     VP field is not present
+    //        0     1     Reserved
+    //        1     0     VP field present an integer represented (relative)
+    //        1     1     VP field present a semi-octet represented (absolute)
+    // RD:        Instruct the SMSC to accept(0) or reject(1) an SMS-SUBMIT
+    //            for a short message still held in the SMSC which has the same
+    //            MR and DA as a previously submitted short message from the
+    //            same OA
+    // MTI:   bit1  bit0    Message Type
+    //        0     0       SMS-DELIVER (SMSC ==> MS)
+    //        0     1       SMS-SUBMIT (MS ==> SMSC)
+
+    // PDU type. MTI is set to SMS-SUBMIT
+    let firstOctetAndMR = 1;
+    // Validity period
     if (validity) {
-      firstOctetAndMR = "0100";
-    } else {
-      firstOctetAndMR = "1100";
+      firstOctetAndMR |= 0x10;
     }
+    if (udhi) {
+      firstOctetAndMR |= 0x40;
+    }
+    // Message reference
+    firstOctetAndMR += "00";
 
     // - Destination Address -
     if (destinationAddress == undefined) {
@@ -527,7 +570,7 @@ let PDU = new function () {
 
     // - Data coding scheme -
     // For now it assumes bits 7..4 = 1111 except for the 16 bits use case
-    let dcs = 0x00;
+    let dcs = 0;
     switch (messageClass) {
       case 1:
         // Message class 1 - ME Specific
@@ -555,14 +598,14 @@ let PDU = new function () {
     }
 
     // - Validity Period -
-    // TODO: Not supported for the moment
+    // TODO: Encode Validity Period. Not supported for the moment
 
     // - User Data Length -
     // Phones allows empty sms
     if (message == undefined) {
       debug("PDU warning: message is empty");
     }
-    let userDataLength = message.length.toString(16);
+    let userDataLength = ("00" + message.length.toString(16)).slice(-2).toUpperCase();
 
     // - User Data -
     let userData = "";
@@ -594,7 +637,7 @@ let PDU = new function () {
         break;
     }
 
-    return smsc + "" +
+    return smsca + "" +
           firstOctetAndMR + "" +
           smsReceiver + "" +
           protocolID + "" +
