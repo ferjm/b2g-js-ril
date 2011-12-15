@@ -589,9 +589,6 @@ let PDU = new function () {
     // For now it assumes bits 7..4 = 1111 except for the 16 bits use case
     let dcs = 0;
     switch (encoding) {
-      case 7:
-        dcs |= PDU_DCS_MSG_CODING_7BITS_ALPHABET;
-        break;
       case 8:
         dcs |= PDU_DCS_MSG_CODING_8BITS_ALPHABET;
         break;
@@ -599,6 +596,7 @@ let PDU = new function () {
         dcs |= PDU_DCS_MSG_CODING_16BITS_ALPHABET;
         break;
     }
+    dcs = ("00" + dcs.toString(16).toUpperCase()).slice(-2);
 
     // - Validity Period -
     // TODO: Encode Validity Period. Not supported for the moment
@@ -617,20 +615,22 @@ let PDU = new function () {
         let octet = "";
         let octetst = "";
         let octetnd = "";
-        for (let i = 0; i < message.length; i++) {
+        for (let i = 0; i <= message.length; i++) {
           if (i == message.length) {
             if (octetnd.length) {
-              userData = userData + parseInt(octetnd, 2).toString(16);
+              userData = userData + ("00" + parseInt(octetnd, 2).toString(16)).slice(-2);
             }
+            break;
           }
           let charcode = charTo7BitCode(message.charAt(i)).toString(2);
           octet = ("00000000" + charcode).slice(-7);
           if (i != 0 && i % 8 != 0) {
             octetst = octet.substring(7 - (i) % 8);
-            userData = userData + parseInt((octetst + octetnd), 2).toString(16).toUpperCase();
+            userData = userData + parseInt((octetst + octetnd), 2).toString(16);
           }
           octetnd = octet.substring(0, 7 - (i) % 8);
         }
+        userData = userData.toUpperCase();
         break;
       case 8:
         //TODO:
