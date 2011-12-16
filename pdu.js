@@ -42,7 +42,6 @@
 
 /**
  * PDU TYPE-OF-ADDRESS
- * http://www.dreamfabric.com/sms/type_of_address.html
  */
 const PDU_TOA_UNKNOWN       = 0x80; // Unknown. This is used when the user or
                                     // network has no a priori information
@@ -69,7 +68,7 @@ const PDU_TOA_ABBREVIATED   = 0xE0; // Abbreviated number
 
 /**
  * First octet of the SMS-DELIVER PDU
- * http://www.dreamfabric.com/sms/deliver_fo.html
+ *
  * RP:     0   Reply Path parameter is not set in this PDU
  *         1   Reply Path parameter is set in this PDU
  *
