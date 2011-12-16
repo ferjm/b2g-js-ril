@@ -1671,7 +1671,6 @@ let GsmPDUHelper = {
     let firstOctet = this.readHexOctet();
     // if the sms is of SMS-SUBMIT type it would contain a TP-MR
     let isSmsSubmit = firstOctet & PDU_MTI_SMS_SUBMIT;
-    let messageReference;
     if (isSmsSubmit) {
       msg.reference = this.readHexOctet(); // TP-Message-Reference
     }
@@ -1747,7 +1746,7 @@ let GsmPDUHelper = {
 
     // - TP-User-Data -
     if (userDataLength > 0) {
-      msg.message = this.readUserData(userDataLength, dataCodingScheme);
+      msg.body = this.readUserData(userDataLength, dataCodingScheme);
     }
 
     return msg;

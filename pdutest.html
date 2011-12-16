@@ -78,7 +78,7 @@ let Buf = {
         var sender = document.createElement("li");
         sender.innerHTML = "Sender: " + parsedPDU.sender;
         var message = document.createElement("li");
-        message.innerHTML = "Message: " + parsedPDU.message;
+        message.innerHTML = "Message: " + parsedPDU.body;
         var tsv = document.createElement("li");
         if(typeof(parsedPDU.timestamp) != "undefined") {
           tsv.innerHTML = "Timestamp: " + parsedPDU.timestamp;
@@ -146,11 +146,11 @@ let Buf = {
           assert(parsed != null, "parsed = null");
           assert(parsed.SMSC == "+886935874443", "Wrong SMSC: " + parsed.SMSC);
           assert(parsed.sender == "+886987765424", "Wrong sender: " + parsed.sender);
-          assert(parsed.message == "Ohai", "Wrong message: " + parsed.message);
+          assert(parsed.body == "Ohai", "Wrong message: " + parsed.body);
           assert(parsed.timestamp == 1323566346000);
           printTestOk("Test0");
         } catch (err) {
-          printTestError("Test0", err.message);
+          printTestError("Test0", err.body);
         }
       }
       {
@@ -167,10 +167,10 @@ let Buf = {
           assert(parsed != null, "parsed = null");
           assert(parsed.SMSC == "+34666000888", "Wrong SMSC: " + parsed.SMSC);
           assert(parsed.sender == "+34666111777", "Wrong sender: " + parsed.sender);
-          assert(parsed.message == "Hi there...", "Wrong message: " + parsed.message);
+          assert(parsed.body == "Hi there...", "Wrong message: " + parsed.body);
           printTestOk("Test1");
         } catch(err) {
-          printTestError("Test1",err.message);
+          printTestError("Test1",err.body);
         }
       }
       {
@@ -187,10 +187,10 @@ let Buf = {
           assert(parsed != null, "parsed = null");
           assert(parsed.SMSC == "666000888", "Wrong SMSC: " + parsed.SMSC);
           assert(parsed.sender == "+34666111777", "Wrong sender: " + parsed.sender);
-          assert(parsed.message == "Hi there...", "Wrong message: " + parsed.message);
+          assert(parsed.body == "Hi there...", "Wrong message: " + parsed.body);
           printTestOk("Test2");
         } catch(err) {
-          printTestError("Test2",err.message);
+          printTestError("Test2",err.body);
         }
       }
       {
@@ -207,10 +207,10 @@ let Buf = {
           assert(parsed != null, "parsed = null");
           assert(parsed.SMSC == "666000888", "Wrong SMSC: " + parsed.SMSC);
           assert(parsed.sender == "666111777", "Wrong sender: " + parsed.sender);
-          assert(parsed.message == "Hi there...", "Wrong message: " + parsed.message);
+          assert(parsed.body == "Hi there...", "Wrong message: " + parsed.body);
           printTestOk("Test3");
         } catch(err) {
-          printTestError("Test3",err.message);
+          printTestError("Test3",err.body);
         }
       }
       {
@@ -227,10 +227,10 @@ let Buf = {
           assert(parsed != null, "parsed = null");
           assert(parsed.SMSC == "+34666", "Wrong SMSC: " + parsed.SMSC);
           assert(parsed.sender == "666111777", "Wrong sender: " + parsed.sender);
-          assert(parsed.message == "Hi there...", "Wrong message: " + parsed.message);
+          assert(parsed.body == "Hi there...", "Wrong message: " + parsed.body);
           printTestOk("Test4");
         } catch(err) {
-          printTestError("Test4",err.message);
+          printTestError("Test4",err.body);
         }
       }
       {
@@ -247,10 +247,10 @@ let Buf = {
           assert(parsed != null, "parsed = null");
           assert(parsed.SMSC == "+34666", "Wrong SMSC: " + parsed.SMSC);
           assert(parsed.sender == "+34666", "Wrong sender: " + parsed.sender);
-          assert(parsed.message == "Hi there...", "Wrong message: " + parsed.message);
+          assert(parsed.body == "Hi there...", "Wrong message: " + parsed.body);
           printTestOk("Test5");
         } catch(err) {
-          printTestError("Test5",err.message);
+          printTestError("Test5",err.body);
         }
       }
       {
@@ -267,10 +267,10 @@ let Buf = {
           assert(parsed != null, "parsed = null");
           assert(parsed.SMSC == undefined, "Wrong SMSC: " + parsed.SMSC);
           assert(parsed.sender == "+34666000333", "Wrong sender: " + parsed.sender);
-          assert(parsed.message == "Hi there...", "Wrong message: " + parsed.message);
+          assert(parsed.body == "Hi there...", "Wrong message: " + parsed.body);
           printTestOk("Test6");
         } catch(err) {
-          printTestError("Test6",err.message);
+          printTestError("Test6",err.body);
         }
       }
       {
@@ -287,7 +287,7 @@ let Buf = {
           assert(parsed == null, "parsed != null");
           printTestOk("Test7");
         } catch(err) {
-          printTestError("Test7",err.message);
+          printTestError("Test7",err.body);
         }
       }
       {
@@ -305,10 +305,10 @@ let Buf = {
           assert(parsed.SMSC == "+34666000333", "Wrong SMSC: " + parsed.SMSC);
           assert(parsed.sender == "+34666000555", "Wrong sender: " + parsed.sender);
           //TODO
-          assert(parsed.message == null, "Wrong message: " + parsed.message);
+          assert(parsed.body == null, "Wrong message: " + parsed.body);
           printTestOk("Test8");
         } catch(err) {
-          printTestError("Test8",err.message);
+          printTestError("Test8",err.body);
         }
       }
       {
@@ -326,10 +326,10 @@ let Buf = {
           assert(parsed.SMSC == "+34666000333", "Wrong SMSC: " + parsed.SMSC);
           assert(parsed.sender == "+34666000555", "Wrong sender: " + parsed.sender);
           //TODO
-          assert(parsed.message == null, "Wrong message: " + parsed.message);
+          assert(parsed.body == null, "Wrong message: " + parsed.body);
           printTestOk("Test9");
         } catch(err) {
-          printTestError("Test9",err.message);
+          printTestError("Test9",err.body);
         }
       }
       {
@@ -341,7 +341,7 @@ let Buf = {
           assert(parsed == null, "parsed != null");
           printTestOk("Test10");
         } catch(err) {
-          printTestError("Test10",err.message);
+          printTestError("Test10",err.body);
         }
       }
       {
@@ -358,7 +358,7 @@ let Buf = {
           assert(parsed == null, "parsed = null");
           printTestOk("Test11");
         } catch(err) {
-          printTestError("Test11",err.message);
+          printTestError("Test11",err.body);
         }
       }
       {
@@ -375,7 +375,7 @@ let Buf = {
           assert(parsed == null, "parsed != null");
           printTestOk("Test12");
         } catch(err) {
-          printTestError("Test12",err.message);
+          printTestError("Test12",err.body);
         }
       }
     }
