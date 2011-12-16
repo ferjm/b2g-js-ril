@@ -39,8 +39,6 @@
 
 "use strict";
 
-const DEBUG = true;
-
 
 // Because service center timestamp omit the century. Yay.
 const PDU_TIMESTAMP_YEAR_OFFSET = 2000;
@@ -209,30 +207,6 @@ const alphabet_7bit = [
   "\xe0"    // LATIN SMALL LETTER A WITH GRAVE
 ];
 
-// Simulate 'Buf' object from ril_worker.js
-let Buf = {
-  pdu: null,
-  current: null,
-  init: function init(pdu) {
-    this.pdu = pdu;
-    this.buffer = [chr.charCodeAt() for each (chr in pdu)];
-    this.current = 0;
- },
-  readUint16: function readUint16() {
-    if (this.current >= this.buffer.length) {
-      if (DEBUG) debug("Ran out of data.");
-      throw "End of buffer!";
-    }
-    return this.buffer[this.current++];
-  },
-  readString: function readString() {
-    if (this.current >= this.pdu.length) {
-      if (DEBUG) debug("Ran out of data.");
-      throw "End of buffer!";
-    }
-    return this.pdu[this.current++];
-  }
-};
 
 /**
  * This object exposes the functionality to parse and serialize PDU strings
