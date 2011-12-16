@@ -685,6 +685,22 @@ let RIL = {
   },
 
   /**
+   * Acknowledge the receipt and handling of an SMS.
+   *
+   * @param success
+   *        Boolean indicating whether the message was successfuly handled.
+   * @param cause
+   *        SMS_* constant indicating the reason for unsuccessful handling.
+   */
+  acknowledgeSMS: function acknowledgeSMS(success, cause) {
+    let token = Buf.newParcel(REQUEST_SMS_ACKNOWLEDGE);
+    Buf.writeUint32(2);
+    Buf.writeUint32(success ? 1 : 0);
+    Buf.writeUint32(cause);
+    Buf.sendParcel();
+  },
+
+  /**
    * Handle incoming requests from the RIL. We find the method that
    * corresponds to the request type. Incidentally, the request type
    * _is_ the method name, so that's easy.
@@ -850,7 +866,9 @@ RIL[REQUEST_QUERY_CALL_FORWARD_STATUS] = null;
 RIL[REQUEST_SET_CALL_FORWARD] = null;
 RIL[REQUEST_QUERY_CALL_WAITING] = null;
 RIL[REQUEST_SET_CALL_WAITING] = null;
-RIL[REQUEST_SMS_ACKNOWLEDGE] = null;
+RIL[REQUEST_SMS_ACKNOWLEDGE] = function REQUEST_SMS_ACKNOWLEDGE() {
+  Phone.onAcknowledgeSMS();
+};
 RIL[REQUEST_GET_IMEI] = function REQUEST_GET_IMEI() {
   let imei = Buf.readString();
   Phone.onIMEI(imei);
@@ -944,8 +962,7 @@ RIL[UNSOLICITED_RESPONSE_NETWORK_STATE_CHANGED] = function UNSOLICITED_RESPONSE_
   Phone.onNetworkStateChanged();
 };
 RIL[UNSOLICITED_RESPONSE_NEW_SMS] = function UNSOLICITED_RESPONSE_NEW_SMS(length) {
-  let info = Buf.readString();
-  Phone.onNewSMS(info);
+  Phone.onNewSMS(length);
 };
 RIL[UNSOLICITED_RESPONSE_NEW_SMS_STATUS_REPORT] = function UNSOLICITED_RESPONSE_NEW_SMS_STATUS_REPORT(length) {
   let info = Buf.readStringList();
@@ -1283,8 +1300,24 @@ let Phone = {
     //TODO
   },
 
-  onNewSMS: function onNewSMS(message) {
-    debug("onNewSMS: " + info);
+  onNewSMS: function onNewSMS(payloadLength) {
+    if (!payloadLength) {
+      if (DEBUG) debug("Received empty SMS!");
+      //TODO: should we acknowledge the SMS here? maybe only after multiple
+      //failures.
+      return;
+    }
+    // An SMS is a string, but we won't read it as such, so let's read the
+    // string length and then defer to PDU parsing helper.
+    let messageStringLength = Buf.readUint32();
+    debug("Got new SMS, length " + messageStringLength);
+    let message = GsmPDUHelper.readMessage();
+    debug(message);
+
+    //TODO: this might be a lie? do we want to wait for the mainthread to
+    // report back?
+    RIL.acknowledgeSMS(true, SMS_HANDLED);
+
     //TODO
   },
 
@@ -1294,6 +1327,9 @@ let Phone = {
 
   onNewSMSOnSIM: function onNewSMSOnSIM(info) {
     //TODO
+  },
+
+  onAcknowledgeSMS: function onAcknowledgeSMS() {
   },
 
   /**
