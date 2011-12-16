@@ -209,54 +209,71 @@ const alphabet_7bit = [
   "\xe0"    // LATIN SMALL LETTER A WITH GRAVE
 ];
 
+// Simulate 'Buf' object from ril_worker.js
+let Buf = {
+  pdu: null,
+  current: null,
+  init: function init(pdu) {
+    this.pdu = pdu;
+    this.buffer = [chr.charCodeAt() for each (chr in pdu)];
+    this.current = 0;
+ },
+  readUint16: function readUint16() {
+    if (this.current >= this.buffer.length) {
+      if (DEBUG) debug("Ran out of data.");
+      throw "End of buffer!";
+    }
+    return this.buffer[this.current++];
+  },
+  readString: function readString() {
+    if (this.current >= this.pdu.length) {
+      if (DEBUG) debug("Ran out of data.");
+      throw "End of buffer!";
+    }
+    return this.pdu[this.current++];
+  }
+};
+
 /**
  * This object exposes the functionality to parse and serialize PDU strings
  *
  * The PDU string contains not only the message, but also a lot of
- * meta-information about the sender, his SMS service center, the time stamp
+ * meta-information about the sender, his SMS service center, the timestamp
  * etc. It is all in the form of hexa-decimal octets or decimal semi-octets.
  *
  * A detailed description of the PDU Format can be found at
  * http://www.dreamfabric.com/sms/
  */
-let PDU = new function () {
+let GsmPDUHelper = {
 
   /**
-   * Read a single hex-encoded octet from the PDU.
-   */
-  function readOctet() {
-    if (mCurrent >= mPdu.length) {
-      if (DEBUG) debug("Ran out of data.");
-      return null;
-    }
-    let octet = parseInt(mPdu[mCurrent], 16) << 4 |
-                parseInt(mPdu[mCurrent + 1], 16);
-    mCurrent += 2;
-    return octet;
-  }
-
-  /**
-   * Read a *swapped nibble* binary coded decimal (BCD)
+   * Read one character (2 bytes) from a RIL string and decode as hex.
    *
-   * @param length
-   *        Number of nibble *pairs* to read.
+   * @return the nibble as a number.
    */
-  function readBCD(length) {
-    let number = 0;
-    for (let i = 0; i < length; i++) {
-      let octet = readOctet();
-      // If the first nibble is an "F" , only the second nibble is to be taken
-      // into account.
-      if ((octet & 0xf0) == 0xf0) {
-        number *= 10;
-        number += octet & 0x0f;
-        continue;
-      }
-      number *= 100;
-      number += octetToBCD(octet);
+  readHexNibble: function readHexNibble() {
+    let nibble = Buf.readUint16();
+    if (nibble >= 48 && nibble <= 57) {
+      nibble -= 48;
+    } else if (nibble >= 65 && nibble <= 70) {
+      nibble -= 55;
+    } else if (nibble >= 97 && nibble <= 102) {
+      nibble -= 87;
+    } else {
+      throw "Found invalid nibble during PDU parsing: " +
+            String.fromCharCode(nibble);
     }
-    return number;
-  }
+    return nibble;
+  },
+
+  /**
+   * Read a hex-encoded octet (two nibbles).
+   *
+   * @return the octet as a number.
+   */
+  readHexOctet: function readHexOctet() {
+    return (this.readHexNibble() << 4) | this.readHexNibble();
+  },
 
   /**
    * Convert an octet (number) to a BCD number.
@@ -268,10 +285,35 @@ let PDU = new function () {
    *
    * @return the corresponding BCD number.
    */
-  function octetToBCD(octet) {
+  octetToBCD: function octetToBCD(octet) {
     return ((octet & 0xf0) <= 0x90) * ((octet >> 4) & 0x0f) +
            ((octet & 0x0f) <= 0x09) * (octet & 0x0f) * 10;
-  }
+  },
+
+  /**
+   * Read a *swapped nibble* binary coded decimal (BCD)
+   *
+   * @param length
+   *        Number of nibble *pairs* to read.
+   *
+   * @return the decimal as a number.
+   */
+  readBCD: function readBCD(length) {
+    let number = 0;
+    for (let i = 0; i < length; i++) {
+      let octet = this.readHexOctet();
+      // If the first nibble is an "F" , only the second nibble is to be taken
+      // into account.
+      if ((octet & 0xf0) == 0xf0) {
+        number *= 10;
+        number += octet & 0x0f;
+        continue;
+      }
+      number *= 100;
+      number += this.octetToBCD(octet);
+    }
+    return number;
+  },
 
   /**
    * Read data, convert to septets, look up relevant characters in the 7-bit
@@ -285,13 +327,13 @@ let PDU = new function () {
    * TODO: support other alphabets
    * TODO: support escape chars
    */
-  function readSeptetsToString(length) {
+  readSeptetsToString: function readSeptetsToString(length) {
     let ret = "";
     let byteLength = Math.ceil(length * 7 / 8);
 
     let leftOver = 0;
     for (let i = 0; i < byteLength; i++) {
-      let octet = readOctet();
+      let octet = this.readHexOctet();
       let shift = (i % 7);
       let leftOver_mask = (0xff << (7 - shift)) & 0xff;
       let septet_mask = (0xff >> (shift + 1));
@@ -310,7 +352,7 @@ let PDU = new function () {
       ret = ret.slice(0, length);
     }
     return ret;
-  }
+  },
 
   /**
    * User data can be 7 bit (default alphabet) data, 8 bit data, or 16 bit
@@ -318,7 +360,7 @@ let PDU = new function () {
    * 
    * TODO: This function currently supports only the default alphabet.
    */
-  function readUserData(length, codingScheme) {
+  readUserData: function readUserData(length, codingScheme) {
     if (DEBUG) {
       debug("Reading " + length + " bytes of user data.");
       debug("Coding scheme: " + codingScheme);
@@ -364,7 +406,7 @@ let PDU = new function () {
           if (DEBUG) debug("PDU error: user data is too long: " + length);
           return null;
         }
-        return readSeptetsToString(length);
+        return this.readSeptetsToString(length);
         break;
       case 8:
         //TODO
@@ -375,28 +417,16 @@ let PDU = new function () {
         return null;
         break;
     }
-  }
-
-  let mCurrent = 0;
-  let mPdu = "";
+  },
 
   /**
-  * Given a PDU string, this function returns a PDU object containing the
-  * SMSC, sender, message and timestamp or validity period
-  * TODO: return error codes instead of false
-  */
-  this.parse = function (pdu) {
-    mPdu = pdu;
-    mCurrent = 0;
-
-    // Allow only hexadecimal
-    //TODO replace this with in-place checks when reading data
-    if (mPdu.search(/[^a-fA-F0-9]/) != -1) {
-      if (DEBUG) debug("PDU error: invalid characters in PDU message: " + mPdu);
-      return null;
-    }
-
-    let ret = {
+   * Read and decode a PDU-encoded message from the stream.
+   *
+   * TODO: add some basic sanity checks like:
+   * - do we have the minimum number of chars available
+   */
+  readMessage: function readMessage() {
+    let msg = {
       SMSC:      null,
       sender:    null,
       message:   null,
@@ -405,51 +435,52 @@ let PDU = new function () {
     };
 
     // SMSC info
-    let smscLength = readOctet();
+    let smscLength = this.readHexOctet();
     if (smscLength > 0) {
-      let smscTypeOfAddress = readOctet();
+      let smscTypeOfAddress = this.readHexOctet();
       // Subtract the type-of-address octet we just read from the length.
-      ret.SMSC = readBCD(smscLength - 1).toString();
+      msg.SMSC = this.readBCD(smscLength - 1).toString();
       if ((smscTypeOfAddress >> 4) == (PDU_TOA_INTERNATIONAL >> 4)) {
-        ret.SMSC = '+' + ret.SMSC;
+        msg.SMSC = '+' + msg.SMSC;
       }
     }
 
     // First octet of this SMS-DELIVER or SMS-SUBMIT message
-    let firstOctet = readOctet();
+    let firstOctet = this.readHexOctet();
     // if the sms is of SMS-SUBMIT type it would contain a TP-MR
     let isSmsSubmit = firstOctet & PDU_MTI_SMS_SUBMIT;
     let messageReference;
     if (isSmsSubmit) {
-      messageReference = readOctet(); // TP-Message-Reference
+      messageReference = this.readHexOctet(); // TP-Message-Reference
     }
 
     // - Sender Address info -
     // Address length
-    let senderAddressLength = readOctet();
+    let senderAddressLength = this.readHexOctet();
     if (senderAddressLength <= 0) {
       if (DEBUG) debug("PDU error: invalid sender address length: " + senderAddressLength);
       return null;
     }
     // Type-of-Address
-    let senderTypeOfAddress = readOctet();
+    let senderTypeOfAddress = this.readHexOctet();
     if (senderAddressLength % 2 == 1) {
       senderAddressLength += 1;
     }
-    ret.sender = readBCD(senderAddressLength / 2).toString();
-    if (ret.sender.length <= 0) {
+    if (DEBUG) debug("PDU: Going to read sender address: " + senderAddressLength);
+    msg.sender = this.readBCD(senderAddressLength / 2).toString();
+    if (msg.sender.length <= 0) {
       if (DEBUG) debug("PDU error: no sender number provided");
       return null;
     }
     if ((senderTypeOfAddress >> 4) == (PDU_TOA_INTERNATIONAL >> 4)) {
-      ret.sender = '+' + ret.sender;
+      msg.sender = '+' + msg.sender;
     }
 
     // - TP-Protocolo-Identifier -
-    let protocolIdentifier = readOctet();
+    let protocolIdentifier = this.readHexOctet();
 
     // - TP-Data-Coding-Scheme -
-    let dataCodingScheme = readOctet();
+    let dataCodingScheme = this.readHexOctet();
 
     // SMS of SMS-SUBMIT type contains a TP-Service-Center-Time-Stamp field
     // SMS of SMS-DELIVER type contains a TP-Validity-Period octet
@@ -465,41 +496,40 @@ let PDU = new function () {
       //    0   1 : TP-VP field present. Enhanced format (7 octets)
       //    1   1 : TP-VP field present. Absolute format (7 octets)
       if (firstOctet & (PDU_VPF_ABSOLUTE | PDU_VPF_RELATIVE | PDU_VPF_ENHANCED)) {
-        ret.validity = readOctet();
+        msg.validity = this.readHexOctet();
       }
       //TODO: check validity period
     } else {
       // - TP-Service-Center-Time-Stamp -
-      let year   = readBCD(1) + PDU_TIMESTAMP_YEAR_OFFSET;
-      let month  = readBCD(1) - 1;
-      let day    = readBCD(1) - 1;
-      let hour   = readBCD(1) - 1;
-      let minute = readBCD(1) - 1;
-      let second = readBCD(1) - 1;
-      ret.timestamp = Date.UTC(year, month, day, hour, minute, second);
+      let year   = this.readBCD(1) + PDU_TIMESTAMP_YEAR_OFFSET;
+      let month  = this.readBCD(1) - 1;
+      let day    = this.readBCD(1) - 1;
+      let hour   = this.readBCD(1) - 1;
+      let minute = this.readBCD(1) - 1;
+      let second = this.readBCD(1) - 1;
+      msg.timestamp = Date.UTC(year, month, day, hour, minute, second);
 
       // If the most significant bit of the least significant nibble is 1,
       // the timezone offset is negative (fourth bit from the right => 0x08).
-      let tzOctet = readOctet();
-      let tzOffset = octetToBCD(tzOctet & ~0x08) * 15 * 60 * 1000;
+      let tzOctet = this.readHexOctet();
+      let tzOffset = this.octetToBCD(tzOctet & ~0x08) * 15 * 60 * 1000;
       if (tzOctet & 0x08) {
-        ret.timestamp -= tzOffset;
+        msg.timestamp -= tzOffset;
       } else {
-        ret.timestamp += tzOffset;
+        msg.timestamp += tzOffset;
       }
     }
 
     // - TP-User-Data-Length -
-    let userDataLength = readOctet();
+    let userDataLength = this.readHexOctet();
 
     // - TP-User-Data -
     if (userDataLength > 0) {
-      ret.message = readUserData(userDataLength, dataCodingScheme);
+      msg.message = this.readUserData(userDataLength, dataCodingScheme);
     }
 
-    return ret;
-  };
-
+    return msg;
+  },
 
 
   /**
@@ -511,15 +541,15 @@ let PDU = new function () {
    *
    * TODO can we get rid of this? only needed by serialization at this point
    */
-  function stringToBCDString(semiOctet) {
+  stringToBCDString: function stringToBCDString(semiOctet) {
     let out = "";
     for (let i = 0; i < semiOctet.length; i += 2) {
       out += semiOctet.charAt(i + 1) + semiOctet.charAt(i);
     }
     return out;
-  }
+  },
 
-  function serializeAddress(address, smsc) {
+  serializeAddress: function serializeAddress(address, smsc) {
     if (address == undefined) {
       return "00";
     }
@@ -537,7 +567,7 @@ let PDU = new function () {
       address += 'F';
     }
     // Convert into string
-    let address = stringToBCDString(address);
+    let address = this.stringToBCDString(address);
     // Not sure why, but the addressLength is handled in a different way
     // if it is an smsc address
     if (smsc) {
@@ -546,9 +576,9 @@ let PDU = new function () {
       addressLength = ("00" + addressLength.toString(16)).slice(-2).toUpperCase();
     }
     return addressLength + "" + addressFormat.toString(16) + "" + address;
-  }
+  },
 
-  function charTo7BitCode(c) {
+  charTo7BitCode: function charTo7BitCode(c) {
     for (let i = 0; i < alphabet_7bit.length; i++) {
       if (alphabet_7bit[i] == c) {
         return i;
@@ -556,8 +586,7 @@ let PDU = new function () {
     }
     if (DEBUG) debug("PDU warning: No character found in default 7 bit alphabet for " + c);
     return null;
-  }
-
+  },
 
 
   /**
@@ -587,16 +616,16 @@ let PDU = new function () {
   *   UDL - User Data Length - 1 octet
   *   UD - User Data - 140 octets
   */
-  this.getSubmitPdu = function(scAddress,
-                              destinationAddress,
-                              message,
-                              encoding,
-                              validity,
-                              udhi) {
+  writeMessage: function writeMessage(scAddress,
+                                      destinationAddress,
+                                      message,
+                                      encoding,
+                                      validity,
+                                      udhi) {
     // - SMSCA -
     let smsca;
     if (scAddress != 0) {
-      smsca = serializeAddress(scAddress, true);
+      smsca = this.serializeAddress(scAddress, true);
     } else {
       scAddress = "00";
     }
@@ -643,7 +672,7 @@ let PDU = new function () {
       if (DEBUG) debug("PDU error: no destination address provided");
       return null;
     }
-    let smsReceiver = serializeAddress(destinationAddress);
+    let smsReceiver = this.serializeAddress(destinationAddress);
 
     // - Protocol Identifier -
     let protocolID = "00";
@@ -685,7 +714,7 @@ let PDU = new function () {
             }
             break;
           }
-          let charcode = charTo7BitCode(message.charAt(i)).toString(2);
+          let charcode = this.charTo7BitCode(message.charAt(i)).toString(2);
           octet = ("00000000" + charcode).slice(-7);
           if (i != 0 && i % 8 != 0) {
             octetst = octet.substring(7 - (i) % 8);
@@ -710,6 +739,6 @@ let PDU = new function () {
           dcs + "" +
           userDataLength + "" +
           userData;
-  };
+  }
 
 };

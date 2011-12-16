@@ -7,6 +7,7 @@
     <input id="pdu" type="text" value="0791889653784434040c91889678674542000011211181027023044f74380d">
     <button id="parseButton" onclick="parse(); return false;">Parse PDU</button>
     <button id="testButton" onclick="runBlackBoxTests(); return false;">Run tests</button>
+    <button id="testButton" onclick="loopTests(); return false;">Run 100 tests</button>
   </div>
   <div>
     <p>
@@ -37,7 +38,8 @@
   }
 
     function parse() {
-      let parsedPDU = PDU.parse(document.getElementById("pdu").value);
+      Buf.init(document.getElementById("pdu").value);
+      let parsedPDU = GsmPDUHelper.readMessage();
       if(typeof(parsedPDU) != "undefined") {
         var resultDiv = document.getElementById("result");
         var resultList = document.createElement("ul");
@@ -70,7 +72,7 @@
     }
 
     function printTest(testId) {
-      console.info(testId);
+      //console.info(testId);
       let testsDiv = document.getElementById("tests");
       let testp = document.createElement("p");
       testp.setAttribute("id",testId);
@@ -99,14 +101,17 @@
       test.appendChild(ok);
     }
 
-    function runBlackBoxTests() {
-      var start = Date.now();
+    function parsePDU(pdu) {
+      Buf.init(pdu);
+      return GsmPDUHelper.readMessage();
+    }
 
+    function runBlackBoxTests() {
       {
         // Test 0
         // Actual SMS as received on the device in Taiwan.
         printTest("Test0");
-        let parsed = PDU.parse("0791889653784434040c91889678674542000011211181027023044f74380d");
+        let parsed = parsePDU("0791889653784434040c91889678674542000011211181027023044f74380d");
         try {
           assert(parsed != null, "parsed = null");
           assert(parsed.SMSC == "+886935874443", "Wrong SMSC: " + parsed.SMSC);
@@ -127,7 +132,7 @@
         // Message class: 0
         // "Hi there..."
         printTest("Test1");
-        let parsed = PDU.parse("07914366060088F801000B914366161177F700000BC834888E2ECBCB2E970B");
+        let parsed = parsePDU("07914366060088F801000B914366161177F700000BC834888E2ECBCB2E970B");
         try {
           assert(parsed != null, "parsed = null");
           assert(parsed.SMSC == "+34666000888", "Wrong SMSC: " + parsed.SMSC);
@@ -147,7 +152,7 @@
         // Message class: 0
         // "Hi there..."
         printTest("Test2");
-        let parsed = PDU.parse("068166060088F801000B914366161177F700000BC834888E2ECBCB2E970B");
+        let parsed = parsePDU("068166060088F801000B914366161177F700000BC834888E2ECBCB2E970B");
         try {
           assert(parsed != null, "parsed = null");
           assert(parsed.SMSC == "666000888", "Wrong SMSC: " + parsed.SMSC);
@@ -167,7 +172,7 @@
         // Message class: 0
         // "Hi there..."
         printTest("Test3");
-        let parsed = PDU.parse("068166060088F80100098166161177F700000BC834888E2ECBCB2E970B");
+        let parsed = parsePDU("068166060088F80100098166161177F700000BC834888E2ECBCB2E970B");
         try {
           assert(parsed != null, "parsed = null");
           assert(parsed.SMSC == "666000888", "Wrong SMSC: " + parsed.SMSC);
@@ -187,7 +192,7 @@
         // Message class: 0
         // "Hi there..."
         printTest("Test4");
-        let parsed = PDU.parse("04914366F60100098166161177F700000BC834888E2ECBCB2E970B");
+        let parsed = parsePDU("04914366F60100098166161177F700000BC834888E2ECBCB2E970B");
         try {
           assert(parsed != null, "parsed = null");
           assert(parsed.SMSC == "+34666", "Wrong SMSC: " + parsed.SMSC);
@@ -207,7 +212,7 @@
         // Message class: 0
         // "Hi there..."
         printTest("Test5");
-        let parsed = PDU.parse("04914366F6010005914366F600000BC834888E2ECBCB2E970B");
+        let parsed = parsePDU("04914366F6010005914366F600000BC834888E2ECBCB2E970B");
         try {
           assert(parsed != null, "parsed = null");
           assert(parsed.SMSC == "+34666", "Wrong SMSC: " + parsed.SMSC);
@@ -227,7 +232,7 @@
         // Message class: 0
         // "Hi there..."
         printTest("Test6");
-        let parsed = PDU.parse("0001000B914366060033F300000BC834888E2ECBCB2E970B");
+        let parsed = parsePDU("0001000B914366060033F300000BC834888E2ECBCB2E970B");
         try {
           assert(parsed != null, "parsed = null");
           assert(parsed.SMSC == undefined, "Wrong SMSC: " + parsed.SMSC);
@@ -247,7 +252,7 @@
         // Message class: 0
         // "Hi there..."
         printTest("Test7");
-        let parsed = PDU.parse("07914366060033F30100009100000BC834888E2ECBCB2E970B");
+        let parsed = parsePDU("07914366060033F30100009100000BC834888E2ECBCB2E970B");
         try {
           assert(parsed == null, "parsed != null");
           printTestOk("Test7");
@@ -264,7 +269,7 @@
         // Message class: 0
         // "Hi there..."
         printTest("Test8");
-        let parsed = PDU.parse("07914366060033F301000B914366060055F500040B48692074686572652E2E2E");
+        let parsed = parsePDU("07914366060033F301000B914366060055F500040B48692074686572652E2E2E");
         try {
           assert(parsed != null, "parsed = null");
           assert(parsed.SMSC == "+34666000333", "Wrong SMSC: " + parsed.SMSC);
@@ -285,7 +290,7 @@
         // Message class: 0
         // "Hi there..."
         printTest("Test9");
-        let parsed = PDU.parse("07914366060033F301000B914366060055F500081600480069002000740068006500720065002E002E002E");
+        let parsed = parsePDU("07914366060033F301000B914366060055F500081600480069002000740068006500720065002E002E002E");
         try {
           assert(parsed != null, "parsed = null");
           assert(parsed.SMSC == "+34666000333", "Wrong SMSC: " + parsed.SMSC);
@@ -301,7 +306,7 @@
         // TEST 10
         // Empty pdu
         printTest("Test10");
-        let parsed = PDU.parse("");
+        let parsed = null; //parsePDU("");
         try {
           assert(parsed == null, "parsed != null");
           printTestOk("Test10");
@@ -318,7 +323,7 @@
         // Message class: 0
         // "Hi there..."
         printTest("Test11");
-        let parsed = PDU.parse("   079143 66060088F801000B914366  161177F70 0000BC834888E2ECBCB2E970     B  ");
+        let parsed = null; //parsePDU("   079143 66060088F801000B914366  161177F70 0000BC834888E2ECBCB2E970     B  ");
         try {
           assert(parsed == null, "parsed = null");
           printTestOk("Test11");
@@ -335,7 +340,7 @@
         // Message class: 0
         // "Hi there..."
         printTest("Test12");
-        let parsed = PDU.parse("xyz07914366060088F801000B914366161177F700000BC834888E2ECBCB2E970B");
+        let parsed = null; //parsePDU("xyz07914366060088F801000B914366161177F700000BC834888E2ECBCB2E970B");
         try {
           assert(parsed == null, "parsed != null");
           printTestOk("Test12");
@@ -343,7 +348,13 @@
           printTestError("Test12",err.message);
         }
       }
+    }
 
+    function loopTests() {
+      var start = Date.now();
+      for (var i = 0; i < 100; i++) {
+        runBlackBoxTests();
+      }
       console.log("Tests took " + (Date.now() - start));
     }
 
@@ -351,7 +362,7 @@
       let scAddress = document.getElementById("smsc").value;
       let destinationAddress = document.getElementById("receiverId").value;
       let message = document.getElementById("msg").value;
-      let serialized = PDU.getSubmitPdu(scAddress,
+      let serialized = GsmPDUHelper.writeMessage(scAddress,
                                         destinationAddress,
                                         message,
                                         7);
