@@ -113,6 +113,7 @@ let PDU = {
   *          TBD
   *   @param udhi
   *          User Data Header information
+  *   @return and object with the SMSC address and the message PDU
   *
   *   SMS-SUBMIT Format
   *   -----------------
@@ -133,7 +134,7 @@ let PDU = {
                                       validity,
                                       udhi) {
     // Empty message object. It gets filled bellow with the Short Message
-    // Service Center address in PDU format (if available) and with the 
+    // Service Center address in PDU format (if available) and with the
     // message PDU and then returned.
     let sms = {
       SMSC: null,
@@ -241,7 +242,7 @@ let PDU = {
             sms.msg = sms.msg + parseInt((octetst + octetnd), 2).toString(16);
           }
           octetnd = octet.substring(0, 7 - (i) % 8);
-        }        
+        }
         break;
       case 8:
         //TODO:
