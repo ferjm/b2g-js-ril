@@ -124,7 +124,7 @@ const PDU_MTI_SMS_SUBMIT          = 0x01;
 const PDU_MTI_SMS_DELIVER         = 0x00;
 
 /* User Data max length in octets*/
-const MAX_LENGTH_7BIT = 160;
+const PDU_MAX_LENGTH_7BIT = 160;
 
 /* DCS - Data Coding Scheme */
 const PDU_DCS_MSG_CODING_7BITS_ALPHABET = 0xF0;
@@ -373,7 +373,7 @@ let PDU = new function () {
       case 7:
         // 7 bit encoding allows 140 octets, which means 160 characters
         // ((140x8) / 7 = 160 chars)
-        if (length > MAX_LENGTH_7BIT) {
+        if (length > PDU_MAX_LENGTH_7BIT) {
           if (DEBUG) debug("PDU error: user data is too long: " + length);
           return null;
         }
