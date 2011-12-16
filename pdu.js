@@ -287,45 +287,42 @@ let PDU = new function () {
   }
 
   /**
-   * Read data and convert to septets.
+   * Read data, convert to septets, look up relevant characters in the 7-bit
+   * alphabet, and construct string.
    *
    * @param length
    *        Number of septets to read (*not* octets)
    *
-   * TODO rewrite this helper
+   * @return a string.
+   *
+   * TODO: support other alphabets
+   * TODO: support escape chars
    */
-  function readSeptets(length) {
+  function readSeptetsToString(length) {
+    let ret = "";
     let byteLength = Math.ceil(length * 7 / 8);
-    let userData = "";
-    let udOctetsArray = [];
-    let udRestArray = [];
-    let udSeptetsArray = [];
-    let index = 1;
+
+    let leftOver = 0;
     for (let i = 0; i < byteLength; i++) {
       let octet = readOctet();
-      // Split into binary octets, septets and rest bits
-      let udBinOctet = ("00000000" + octet.toString(2)).slice(-8);
-      udOctetsArray.push(udBinOctet);
-      udRestArray.push(udBinOctet.substring(0, (index % 8)));
-      udSeptetsArray.push(udBinOctet.substring((index % 8), 8));
-      if (index == 7) {
-        index = 1;
-      } else {
-        index += 1;
+      let shift = (i % 7);
+      let leftOver_mask = (0xff << (7 - shift)) & 0xff;
+      let septet_mask = (0xff >> (shift + 1));
+
+      let septet = ((octet & septet_mask) << shift) | leftOver;
+      ret += alphabet_7bit[septet];
+      leftOver = (octet & leftOver_mask) >> (7 - shift);
+
+      // Every 7th byte we have a whole septet left over that we can apply.
+      if (shift == 6) {
+        ret += alphabet_7bit[leftOver];
+        leftOver = 0;
       }
     }
-    for (let i = 0; i < udRestArray.length; i++) {
-      // Parse septets + rest
-      if (i % 7 == 0) {
-        if (i != 0) {
-          userData += alphabet_7bit[parseInt(udRestArray[i - 1], 2)];
-        }
-        userData += alphabet_7bit[parseInt(udSeptetsArray[i], 2)];
-      } else {
-        userData += alphabet_7bit[parseInt(udSeptetsArray[i] + udRestArray[i - 1], 2)];
-      }
+    if (ret.length != length) {
+      ret = ret.slice(0, length);
     }
-    return userData;
+    return ret;
   }
 
   /**
@@ -380,7 +377,7 @@ let PDU = new function () {
           if (DEBUG) debug("PDU error: user data is too long: " + length);
           return null;
         }
-        return readSeptets(length);
+        return readSeptetsToString(length);
         break;
       case 8:
         //TODO
