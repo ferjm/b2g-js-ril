@@ -39,9 +39,8 @@
 
 "use strict";
 
-// TODO: consts must be completed with 3GPP doc and placed in another file
-
 const DEBUG = true;
+
 
 // Because service center timestamp omit the century. Yay.
 const PDU_TIMESTAMP_YEAR_OFFSET = 2000;
@@ -74,34 +73,34 @@ const PDU_TOA_ALPHANUMERIC  = 0xD0; // Alphanumeric, (coded according to GSM TS
 const PDU_TOA_ABBREVIATED   = 0xE0; // Abbreviated number
 
 /**
-* First octet of the SMS-DELIVER PDU
-* http://www.dreamfabric.com/sms/deliver_fo.html
-* RP:     0   Reply Path parameter is not set in this PDU
-*         1   Reply Path parameter is set in this PDU
-*
-* UDHI:   0   The UD field contains only the short message
-*         1   The beginning of the UD field contains a header in addition of
-*             the short message
-*
-* SRI: (is only set by the SMSC)
-*         0    A status report will not be returned to the SME
-*         1    A status report will be returned to the SME
-*
-* MMS: (is only set by the SMSC)
-*         0    More messages are waiting for the MS in the SMSC
-*         1    No more messages are waiting for the MS in the SMSC
-*
-* MTI:   bit1    bit0    Message type
-*         0       0       SMS-DELIVER (SMSC ==> MS)
-*         0       0       SMS-DELIVER REPORT (MS ==> SMSC, is generated
-*                         automatically by the M20, after receiving a
-*                         SMS-DELIVER)
-*         0       1       SMS-SUBMIT (MS ==> SMSC)
-*         0       1       SMS-SUBMIT REPORT (SMSC ==> MS)
-*         1       0       SMS-STATUS REPORT (SMSC ==> MS)
-*         1       0       SMS-COMMAND (MS ==> SMSC)
-*         1       1       Reserved
-*/
+ * First octet of the SMS-DELIVER PDU
+ * http://www.dreamfabric.com/sms/deliver_fo.html
+ * RP:     0   Reply Path parameter is not set in this PDU
+ *         1   Reply Path parameter is set in this PDU
+ *
+ * UDHI:   0   The UD field contains only the short message
+ *         1   The beginning of the UD field contains a header in addition of
+ *             the short message
+ *
+ * SRI: (is only set by the SMSC)
+ *         0    A status report will not be returned to the SME
+ *         1    A status report will be returned to the SME
+ *
+ * MMS: (is only set by the SMSC)
+ *         0    More messages are waiting for the MS in the SMSC
+ *         1    No more messages are waiting for the MS in the SMSC
+ *
+ * MTI:   bit1    bit0    Message type
+ *         0       0       SMS-DELIVER (SMSC ==> MS)
+ *         0       0       SMS-DELIVER REPORT (MS ==> SMSC, is generated
+ *                         automatically by the M20, after receiving a
+ *                         SMS-DELIVER)
+ *         0       1       SMS-SUBMIT (MS ==> SMSC)
+ *         0       1       SMS-SUBMIT REPORT (SMSC ==> MS)
+ *         1       0       SMS-STATUS REPORT (SMSC ==> MS)
+ *         1       0       SMS-COMMAND (MS ==> SMSC)
+ *         1       1       Reserved
+ */
 const PDU_RP    = 0x80;       // Reply path. Parameter indicating that
                               // reply path exists.
 const PDU_UDHI  = 0x40;       // User data header indicator. This bit is
@@ -118,15 +117,15 @@ const PDU_VPF_ENHANCED = 0x8; // Validity period enhance format
 const PDU_MMS_RD       = 0x04;// More messages to send. (SMS-DELIVER only) or
                               // Reject duplicates (SMS-SUBMIT only)
 
-/* MTI - Message Type Indicator */
+// MTI - Message Type Indicator
 const PDU_MTI_SMS_STATUS_COMMAND  = 0x02;
 const PDU_MTI_SMS_SUBMIT          = 0x01;
 const PDU_MTI_SMS_DELIVER         = 0x00;
 
-/* User Data max length in octets*/
+// User Data max length in octets
 const PDU_MAX_USER_DATA_7BIT = 160;
 
-/* DCS - Data Coding Scheme */
+// DCS - Data Coding Scheme
 const PDU_DCS_MSG_CODING_7BITS_ALPHABET = 0xF0;
 const PDU_DCS_MSG_CODING_8BITS_ALPHABET = 0xF4;
 const PDU_DCS_MSG_CODING_16BITS_ALPHABET= 0x08;
@@ -134,7 +133,8 @@ const PDU_DCS_MSG_CLASS_ME_SPECIFIC     = 0xF1;
 const PDU_DCS_MSG_CLASS_SIM_SPECIFIC    = 0xF2;
 const PDU_DCS_MSG_CLASS_TE_SPECIFIC     = 0xF3;
 
-/* 7bit Default Alphabet: http://dreamfabric.com/sms/default_alphabet.html */
+// 7bit Default Alphabet
+//TODO: maybe convert this to a string? might be faster/cheaper
 const alphabet_7bit = [
   "@",      // COMMERCIAL AT
   "\xa3",   // POUND SIGN
