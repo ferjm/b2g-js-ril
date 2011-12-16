@@ -237,12 +237,10 @@ let Buf = {
 /**
  * This object exposes the functionality to parse and serialize PDU strings
  *
- * The PDU string contains not only the message, but also a lot of
- * meta-information about the sender, the SMS service center, the timestamp
- * etc. It is all in the form of hexa-decimal octets or decimal semi-octets.
- *
- * A detailed description of the PDU Format can be found at
- * http://www.dreamfabric.com/sms/
+ * A PDU is a string containing a series of hexadecimally encoded octets
+ * or nibble-swapped binary-coded decimals (BCDs). It contains not only the
+ * message text but information abou the sender, the SMS service center,
+ * timestamp, etc.
  */
 let GsmPDUHelper = {
 
@@ -316,8 +314,8 @@ let GsmPDUHelper = {
   },
 
   /**
-   * Read data, convert to septets, look up relevant characters in the 7-bit
-   * alphabet, and construct string.
+   * Read user data, convert to septets, look up relevant characters in a
+   * 7-bit alphabet, and construct string.
    *
    * @param length
    *        Number of septets to read (*not* octets)
@@ -355,6 +353,18 @@ let GsmPDUHelper = {
   },
 
   /**
+   * Read user data and decode as a UCS2 string.
+   *
+   * @param length
+   *        XXX TODO
+   *
+   * @return a string.
+   */
+  readUCS2String: function readUCS2String(length) {
+    //TODO
+  },
+
+  /**
    * User data can be 7 bit (default alphabet) data, 8 bit data, or 16 bit
    * (UCS2) data.
    * 
@@ -365,8 +375,8 @@ let GsmPDUHelper = {
       debug("Reading " + length + " bytes of user data.");
       debug("Coding scheme: " + codingScheme);
     }
-    // Get encoding scheme according to http://www.dreamfabric.com/sms/dcs.html
-    let encoding = 7; // 7 bit is the default encoding
+    // 7 bit is the default fallback encoding.
+    let encoding = 7;
     switch (codingScheme & 0xC0) {
       case 0x0:
         // bits 7..4 = 00xx
@@ -409,12 +419,10 @@ let GsmPDUHelper = {
         return this.readSeptetsToString(length);
         break;
       case 8:
-        //TODO
         return null;
         break;
       case 16:
-        //TODO
-        return null;
+        return this.readUCS2String(length);
         break;
     }
   },
@@ -426,8 +434,10 @@ let GsmPDUHelper = {
    * - do we have the minimum number of chars available
    */
   readMessage: function readMessage() {
+    // An empty message object. This gets filled below and then returned.
     let msg = {
       SMSC:      null,
+      reference: null,
       sender:    null,
       message:   null,
       validity:  null,
@@ -451,7 +461,7 @@ let GsmPDUHelper = {
     let isSmsSubmit = firstOctet & PDU_MTI_SMS_SUBMIT;
     let messageReference;
     if (isSmsSubmit) {
-      messageReference = this.readHexOctet(); // TP-Message-Reference
+      msg.reference = this.readHexOctet(); // TP-Message-Reference
     }
 
     // - Sender Address info -
