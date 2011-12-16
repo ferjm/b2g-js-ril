@@ -134,7 +134,7 @@
         try {
           assert(parsed != null, "parsed = null");
           assert(parsed.SMSC == "666000888", "Wrong SMSC: " + parsed.SMSC);
-          assert(parsed.sender == "+34666111777", "Wrong receiver: " + parsed.sender);
+          assert(parsed.sender == "+34666111777", "Wrong sender: " + parsed.sender);
           assert(parsed.message == "Hi there...", "Wrong message: " + parsed.message);
           printTestOk("Test2");
         } catch(err) {
@@ -154,7 +154,7 @@
         try {
           assert(parsed != null, "parsed = null");
           assert(parsed.SMSC == "666000888", "Wrong SMSC: " + parsed.SMSC);
-          assert(parsed.sender == "666111777", "Wrong receiver: " + parsed.sender);
+          assert(parsed.sender == "666111777", "Wrong sender: " + parsed.sender);
           assert(parsed.message == "Hi there...", "Wrong message: " + parsed.message);
           printTestOk("Test3");
         } catch(err) {
@@ -174,7 +174,7 @@
         try {
           assert(parsed != null, "parsed = null");
           assert(parsed.SMSC == "+34666", "Wrong SMSC: " + parsed.SMSC);
-          assert(parsed.sender == "666111777", "Wrong receiver: " + parsed.sender);
+          assert(parsed.sender == "666111777", "Wrong sender: " + parsed.sender);
           assert(parsed.message == "Hi there...", "Wrong message: " + parsed.message);
           printTestOk("Test4");
         } catch(err) {
@@ -194,7 +194,7 @@
         try {
           assert(parsed != null, "parsed = null");
           assert(parsed.SMSC == "+34666", "Wrong SMSC: " + parsed.SMSC);
-          assert(parsed.sender == "+34666", "Wrong receiver: " + parsed.sender);
+          assert(parsed.sender == "+34666", "Wrong sender: " + parsed.sender);
           assert(parsed.message == "Hi there...", "Wrong message: " + parsed.message);
           printTestOk("Test5");
         } catch(err) {
