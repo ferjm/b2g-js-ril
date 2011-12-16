@@ -30,12 +30,15 @@
   </div>
   <div id="tests">
   </div>
+<script type="application/javascript;version=1.8">
+function importScripts() {}
+</script>
+  <script type="application/javascript;version=1.8" src="ril_consts.js"></script>
+  <script type="application/javascript;version=1.8" src="ril_worker.js"></script>
   <script type="application/javascript;version=1.8" src="pdu.js"></script>
   <script type="application/javascript;version=1.8">
 
-  const DEBUG = true;
-
-// Simulate 'Buf' object from ril_worker.js
+// Overwrite 'Buf' object from ril_worker.js with this test dummy.
 let Buf = {
   pdu: null,
   current: null,
