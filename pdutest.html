@@ -70,6 +70,7 @@
     }
 
     function printTest(testId) {
+      console.info(testId);
       let testsDiv = document.getElementById("tests");
       let testp = document.createElement("p");
       testp.setAttribute("id",testId);
@@ -111,8 +112,7 @@
           assert(parsed.SMSC == "+886935874443", "Wrong SMSC: " + parsed.SMSC);
           assert(parsed.sender == "+886987765424", "Wrong sender: " + parsed.sender);
           assert(parsed.message == "Ohai", "Wrong message: " + parsed.message);
-          assert(parsed.timestamp == "11/12/11 18:20:07");
-debug(parsed);
+          assert(parsed.timestamp == 1323566346000);
           printTestOk("Test0");
         } catch (err) {
           printTestError("Test0", err.message);

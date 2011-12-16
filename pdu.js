@@ -43,6 +43,9 @@
 
 const DEBUG = true;
 
+// Because service center timestamp omit the century. Yay.
+const PDU_TIMESTAMP_YEAR_OFFSET = 2000;
+
 /**
  * PDU TYPE-OF-ADDRESS
  * http://www.dreamfabric.com/sms/type_of_address.html
@@ -246,15 +249,41 @@ let PDU = new function () {
   }
 
   /**
-   * Semi octets are decimal. Each pairs of digits needs to be swapped.
+   * Read a *swapped nibble* binary coded decimal (BCD)
+   *
+   * @param length
+   *        Number of nibble *pairs* to read.
    */
-  function readSemiOctets(length) {
-    let out = "";
+  function readBCD(length) {
+    let number = 0;
     for (let i = 0; i < length; i++) {
-      out += mPdu[mCurrent + 1] + mPdu[mCurrent];
-      mCurrent += 2;
+      let octet = readOctet();
+      // If the first nibble is an "F" , only the second nibble is to be taken
+      // into account.
+      if ((octet & 0xf0) == 0xf0) {
+        number *= 10;
+        number += octet & 0x0f;
+        continue;
+      }
+      number *= 100;
+      number += octetToBCD(octet);
     }
-    return out;
+    return number;
+  }
+
+  /**
+   * Convert an octet (number) to a BCD number.
+   *
+   * Any nibbles that are not in the BCD range count as 0.
+   *
+   * @param octet
+   *        The octet (a number, as returned by getOctet())
+   *
+   * @return the corresponding BCD number.
+   */
+  function octetToBCD(octet) {
+    return ((octet & 0xf0) <= 0x90) * ((octet >> 4) & 0x0f) +
+           ((octet & 0x0f) <= 0x09) * (octet & 0x0f) * 10;
   }
 
   /**
@@ -269,7 +298,7 @@ let PDU = new function () {
     // 7 bit encoding allows 140 octets, which means 160 characters
     // ((140x8) / 7 = 160 chars)
     if (length > MAX_LENGTH_7BIT) {
-      if (DEBUG) debug("PDU error: user data is too long: " + octets.length);
+      if (DEBUG) debug("PDU error: user data is too long: " + length);
       return null;
     }
     let byteLength = Math.ceil(length * 7 / 8);
@@ -438,12 +467,10 @@ let PDU = new function () {
     let smscLength = readOctet();
     if (smscLength > 0) {
       let smscTypeOfAddress = readOctet();
-      ret.SMSC = readSemiOctets(smscLength - 1);
+      // Subtract the type-of-address octet we just read from the length.
+      ret.SMSC = readBCD(smscLength - 1).toString();
       if ((smscTypeOfAddress >> 4) == (PDU_TOA_INTERNATIONAL >> 4)) {
         ret.SMSC = '+' + ret.SMSC;
-      }
-      if (ret.SMSC.charAt(ret.SMSC.length - 1) == 'F') {
-        ret.SMSC = ret.SMSC.slice(0,-1);
       }
     }
 
@@ -468,16 +495,13 @@ let PDU = new function () {
     if (senderAddressLength % 2 == 1) {
       senderAddressLength += 1;
     }
-    ret.sender = readSemiOctets(senderAddressLength / 2);
+    ret.sender = readBCD(senderAddressLength / 2).toString();
     if (ret.sender.length <= 0) {
       if (DEBUG) debug("PDU error: no sender number provided");
       return null;
     }
     if ((senderTypeOfAddress >> 4) == (PDU_TOA_INTERNATIONAL >> 4)) {
       ret.sender = '+' + ret.sender;
-    }
-    if (ret.sender.charAt(ret.sender.length -1) == 'F') {
-      ret.sender = ret.sender.slice(0, -1);
     }
 
     // - TP-Protocolo-Identifier -
@@ -488,7 +512,6 @@ let PDU = new function () {
 
     // SMS of SMS-SUBMIT type contains a TP-Service-Center-Time-Stamp field
     // SMS of SMS-DELIVER type contains a TP-Validity-Period octet
-    let validityPeriod;
     if (isSmsSubmit) {
       //  - TP-Validity-Period -
       //  The Validity Period octet is optional. Depends on the SMS-SUBMIT
@@ -501,20 +524,28 @@ let PDU = new function () {
       //    0   1 : TP-VP field present. Enhanced format (7 octets)
       //    1   1 : TP-VP field present. Absolute format (7 octets)
       if (firstOctet & (PDU_VPF_ABSOLUTE | PDU_VPF_RELATIVE | PDU_VPF_ENHANCED)) {
-        validityPeriod = readOctet();
+        ret.validity = readOctet();
       }
       //TODO: check validity period
     } else {
       // - TP-Service-Center-Time-Stamp -
-      let scTimeStamp = readSemiOctets(7);
-debug("timestamp: " + scTimeStamp);
-      //TODO: convert to Date() object or Unixy timestamp
-      var scTimeStampString = scTimeStamp.substring(4,6) + "/" +
-                              scTimeStamp.substring(2,4) + "/" +
-                              scTimeStamp.substring(0,2) + " " +
-                              scTimeStamp.substring(6,8) + ":" +
-                              scTimeStamp.substring(8,10) + ":" +
-                              scTimeStamp.substring(10,12);
+      let year   = readBCD(1) + PDU_TIMESTAMP_YEAR_OFFSET;
+      let month  = readBCD(1) - 1;
+      let day    = readBCD(1) - 1;
+      let hour   = readBCD(1) - 1;
+      let minute = readBCD(1) - 1;
+      let second = readBCD(1) - 1;
+      ret.timestamp = Date.UTC(year, month, day, hour, minute, second);
+
+      // If the most significant bit of the least significant nibble is 1,
+      // the timezone offset is negative (fourth bit from the right => 0x08).
+      let tzOctet = readOctet();
+      let tzOffset = octetToBCD(tzOctet & ~0x08) * 15 * 60 * 1000;
+      if (tzOctet & 0x08) {
+        ret.timestamp -= tzOffset;
+      } else {
+        ret.timestamp += tzOffset;
+      }
     }
 
     // - TP-User-Data-Length -
@@ -525,11 +556,7 @@ debug("timestamp: " + scTimeStamp);
       ret.message = readUserData(userDataLength, dataCodingScheme);
     }
 
-    if (isSmsSubmit) {
-      ret.validity = validityPeriod;
-    } else {
-      ret.timestamp = scTimeStampString;
-    }
+debug(ret);
     return ret;
   };
 
