@@ -238,7 +238,7 @@ let Buf = {
  * This object exposes the functionality to parse and serialize PDU strings
  *
  * The PDU string contains not only the message, but also a lot of
- * meta-information about the sender, his SMS service center, the timestamp
+ * meta-information about the sender, the SMS service center, the timestamp
  * etc. It is all in the form of hexa-decimal octets or decimal semi-octets.
  *
  * A detailed description of the PDU Format can be found at
