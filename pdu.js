@@ -41,8 +41,10 @@
 
 
 /**
- * PDU TYPE-OF-ADDRESS
+ * GSM PDU constants
  */
+
+// PDU TYPE-OF-ADDRESS
 const PDU_TOA_UNKNOWN       = 0x80; // Unknown. This is used when the user or
                                     // network has no a priori information
                                     // about the numbering plan.
