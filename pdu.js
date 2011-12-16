@@ -295,12 +295,6 @@ let PDU = new function () {
    * TODO rewrite this helper
    */
   function readSeptets(length) {
-    // 7 bit encoding allows 140 octets, which means 160 characters
-    // ((140x8) / 7 = 160 chars)
-    if (length > MAX_LENGTH_7BIT) {
-      if (DEBUG) debug("PDU error: user data is too long: " + length);
-      return null;
-    }
     let byteLength = Math.ceil(length * 7 / 8);
     let userData = "";
     let udOctetsArray = [];
@@ -380,6 +374,12 @@ let PDU = new function () {
     if (DEBUG) debug("PDU: message encoding is " + encoding + " bit.");
     switch (encoding) {
       case 7:
+        // 7 bit encoding allows 140 octets, which means 160 characters
+        // ((140x8) / 7 = 160 chars)
+        if (length > MAX_LENGTH_7BIT) {
+          if (DEBUG) debug("PDU error: user data is too long: " + length);
+          return null;
+        }
         return readSeptets(length);
         break;
       case 8:
@@ -556,7 +556,6 @@ let PDU = new function () {
       ret.message = readUserData(userDataLength, dataCodingScheme);
     }
 
-debug(ret);
     return ret;
   };
 
