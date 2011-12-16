@@ -365,7 +365,7 @@ let PDU = new function () {
   }
 
   function serializeAddress(address, smsc) {
-    if(address == undefined) {
+    if (address == undefined) {
       return "00";
     }
     // International format
@@ -377,12 +377,19 @@ let PDU = new function () {
       addressFormat = PDU_TOA_ISDN; // 81
     }
     // Add a trailing 'F'
-    if (address.length % 2 == 0) {
+    let addressLength = address.length;
+    if (addressLength % 2 != 0) {
       address += 'F';
     }
     // Convert into string
     let address = semiOctetToString(address);
-    let addressLength = ("00" + parseInt((addressFormat.toString(16) + "" + address).length / 2)).slice(-2);
+    // Not sure why, but the addressLength is handled in a different way
+    // if it is an smsc address
+    if (smsc) {
+      addressLength = ("00" + parseInt((addressFormat.toString(16) + "" + address).length / 2)).slice(-2);
+    } else {
+      addressLength = ("00" + addressLength.toString(16)).slice(-2).toUpperCase();
+    }
     return addressLength + "" + addressFormat.toString(16) + "" + address;
   }
 
@@ -399,9 +406,15 @@ let PDU = new function () {
   let mCurrent = 0;
   let mPdu = "";
 
-  // Given a PDU string, this function returns a PDU object containing the
-  // SMSC, sender, message and timestamp or validity period
-  // TODO: return error codes instead of false
+  /**
+  * Public API
+  */
+
+  /**
+  * Given a PDU string, this function returns a PDU object containing the
+  * SMSC, sender, message and timestamp or validity period
+  * TODO: return error codes instead of false
+  */
   this.parse = function (pdu) {
     mPdu = pdu;
 
@@ -517,31 +530,85 @@ let PDU = new function () {
       ret.timestamp = scTimeStampString;
     }
     return ret;
-  }; //this.parse
+  };
 
-  // Get a SMS-SUBMIT PDU for a destination address and a message using the
-  // specified encoding.
+  /**
+  *   Get a SMS-SUBMIT PDU for a destination address and a message using the
+  *   specified encoding.
+  *
+  *   @param scAddress
+  *          String containing the address (number) of the SMS Service Center
+  *   @param destinationAddress
+  *          String containing the address (number) of the SMS receiver
+  *   @param message
+  *          String containing the message to be sent as user data
+  *   @param validity
+  *          TBD
+  *   @param udhi
+  *          User Data Header information
+  *
+  *   SMS-SUBMIT Format
+  *   -----------------
+  *
+  *   SMSCA - Service Center Address - 1 to 10 octets
+  *   PDU Type & Message Reference - 1 octet
+  *   DA - Destination Address - 2 to 12 octets
+  *   PID - Protocol Identifier - 1 octet
+  *   DCS - Data Coding Scheme - 1 octet
+  *   VP - Validity Period - 0, 1 or 7 octets
+  *   UDL - User Data Length - 1 octet
+  *   UD - User Data - 140 octets
+  */
   this.getSubmitPdu = function(scAddress,
                               destinationAddress,
                               message,
+                              encoding,
                               validity,
-                              messageClass,
-                              encoding) {
-    // - SMSC -
-    let smsc;
+                              udhi) {
+    // - SMSCA -
+    let smsca;
     if (scAddress != 0) {
-      smsc = serializeAddress(scAddress);
+      smsca = serializeAddress(scAddress, true);
     } else {
       scAddress = "00";
     }
 
     // - PDU-TYPE and MR-
-    let firstOctetAndMR;
+
+    // +--------+----------+---------+---------+--------+---------+
+    // | RP (1) | UDHI (1) | SRR (1) | VPF (2) | RD (1) | MTI (2) |
+    // +--------+----------+---------+---------+--------+---------+
+    // RP:    0   Reply path parameter is not set
+    //        1   Reply path parameter is set
+    // UDHI:  0   The UD Field contains only the short message
+    //        1   The beginning of the UD field contains a header in adittion
+    //            of the short message
+    // SRR:   0   A status report is not requested
+    //        1   A status report is requested
+    // VPF:   bit4  bit3
+    //        0     0     VP field is not present
+    //        0     1     Reserved
+    //        1     0     VP field present an integer represented (relative)
+    //        1     1     VP field present a semi-octet represented (absolute)
+    // RD:        Instruct the SMSC to accept(0) or reject(1) an SMS-SUBMIT
+    //            for a short message still held in the SMSC which has the same
+    //            MR and DA as a previously submitted short message from the
+    //            same OA
+    // MTI:   bit1  bit0    Message Type
+    //        0     0       SMS-DELIVER (SMSC ==> MS)
+    //        0     1       SMS-SUBMIT (MS ==> SMSC)
+
+    // PDU type. MTI is set to SMS-SUBMIT
+    let firstOctetAndMR = 1;
+    // Validity period
     if (validity) {
-      firstOctetAndMR = "0100";
-    } else {
-      firstOctetAndMR = "1100";
+      firstOctetAndMR |= 0x10;
     }
+    if (udhi) {
+      firstOctetAndMR |= 0x40;
+    }
+    // Message reference
+    firstOctetAndMR += "00";
 
     // - Destination Address -
     if (destinationAddress == undefined) {
@@ -555,25 +622,8 @@ let PDU = new function () {
 
     // - Data coding scheme -
     // For now it assumes bits 7..4 = 1111 except for the 16 bits use case
-    let dcs = 0x00;
-    switch (messageClass) {
-      case 1:
-        // Message class 1 - ME Specific
-        dcs |= PDU_DCS_MSG_CLASS_ME_SPECIFIC;
-        break;
-      case 2:
-        // Message class 2 - SIM Specific
-        dcs |= PDU_DCS_MSG_CLASS_SIM_SPECIFIC;
-        break;
-      case 3:
-        // Message class 3 - TE Specific
-        dcs |= PDU_DCS_MSG_CLASS_TE_SPECIFIC;
-        break;
-    }
+    let dcs = 0;
     switch (encoding) {
-      case 7:
-        dcs |= PDU_DCS_MSG_CODING_7BITS_ALPHABET;
-        break;
       case 8:
         dcs |= PDU_DCS_MSG_CODING_8BITS_ALPHABET;
         break;
@@ -581,16 +631,17 @@ let PDU = new function () {
         dcs |= PDU_DCS_MSG_CODING_16BITS_ALPHABET;
         break;
     }
+    dcs = ("00" + dcs.toString(16).toUpperCase()).slice(-2);
 
     // - Validity Period -
-    // TODO: Not supported for the moment
+    // TODO: Encode Validity Period. Not supported for the moment
 
     // - User Data Length -
     // Phones allows empty sms
     if (message == undefined) {
       if (DEBUG) debug("PDU warning: message is empty");
     }
-    let userDataLength = message.length.toString(16);
+    let userDataLength = ("00" + message.length.toString(16)).slice(-2).toUpperCase();
 
     // - User Data -
     let userData = "";
@@ -599,20 +650,22 @@ let PDU = new function () {
         let octet = "";
         let octetst = "";
         let octetnd = "";
-        for (let i = 0; i < message.length; i++) {
+        for (let i = 0; i <= message.length; i++) {
           if (i == message.length) {
             if (octetnd.length) {
-              userData = userData + parseInt(octetnd, 2).toString(16);
+              userData = userData + ("00" + parseInt(octetnd, 2).toString(16)).slice(-2);
             }
+            break;
           }
           let charcode = charTo7BitCode(message.charAt(i)).toString(2);
           octet = ("00000000" + charcode).slice(-7);
           if (i != 0 && i % 8 != 0) {
             octetst = octet.substring(7 - (i) % 8);
-            userData = userData + parseInt((octetst + octetnd), 2).toString(16).toUpperCase();
+            userData = userData + parseInt((octetst + octetnd), 2).toString(16);
           }
           octetnd = octet.substring(0, 7 - (i) % 8);
         }
+        userData = userData.toUpperCase();
         break;
       case 8:
         //TODO:
@@ -622,7 +675,7 @@ let PDU = new function () {
         break;
     }
 
-    return smsc + "" +
+    return smsca + "" +
           firstOctetAndMR + "" +
           smsReceiver + "" +
           protocolID + "" +
