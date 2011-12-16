@@ -1315,11 +1315,12 @@ let Phone = {
     let message = GsmPDUHelper.readMessage();
     debug(message);
 
+    message.type = "sms-received";
+    this.sendDOMMessage(message);
+
     //TODO: this might be a lie? do we want to wait for the mainthread to
     // report back?
     RIL.acknowledgeSMS(true, SMS_HANDLED);
-
-    //TODO
   },
 
   onNewSMSStatusReport: function onNewSMSStatusReport(info) {
