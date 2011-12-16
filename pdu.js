@@ -40,16 +40,13 @@
 "use strict";
 
 
-// Because service center timestamp omit the century. Yay.
-const PDU_TIMESTAMP_YEAR_OFFSET = 2000;
-
 /**
  * PDU TYPE-OF-ADDRESS
  * http://www.dreamfabric.com/sms/type_of_address.html
  */
 const PDU_TOA_UNKNOWN       = 0x80; // Unknown. This is used when the user or
-                                    // network has no a priori information about
-                                    // the numbering plan.
+                                    // network has no a priori information
+                                    // about the numbering plan.
 const PDU_TOA_ISDN          = 0x81; // ISDN/Telephone numbering
 const PDU_TOA_DATA_NUM      = 0x83; // Data numbering plan
 const PDU_TOA_TELEX_NUM     = 0x84; // Telex numbering plan
@@ -130,6 +127,9 @@ const PDU_DCS_MSG_CODING_16BITS_ALPHABET= 0x08;
 const PDU_DCS_MSG_CLASS_ME_SPECIFIC     = 0xF1;
 const PDU_DCS_MSG_CLASS_SIM_SPECIFIC    = 0xF2;
 const PDU_DCS_MSG_CLASS_TE_SPECIFIC     = 0xF3;
+
+// Because service center timestamp omit the century. Yay.
+const PDU_TIMESTAMP_YEAR_OFFSET = 2000;
 
 // 7bit Default Alphabet
 //TODO: maybe convert this to a string? might be faster/cheaper
