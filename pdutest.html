@@ -114,7 +114,7 @@
         try {
           assert(parsed != null, "parsed = null");
           assert(parsed.SMSC == "+34666000888", "Wrong SMSC: " + parsed.SMSC);
-          assert(parsed.sender == "+34666111777", "Wrong receiver: " + parsed.sender);
+          assert(parsed.sender == "+34666111777", "Wrong sender: " + parsed.sender);
           assert(parsed.message == "Hi there...", "Wrong message: " + parsed.message);
           printTestOk("Test1");
         } catch(err) {
@@ -214,7 +214,7 @@
         try {
           assert(parsed != null, "parsed = null");
           assert(parsed.SMSC == undefined, "Wrong SMSC: " + parsed.SMSC);
-          assert(parsed.sender == "+34666000333", "Wrong receiver: " + parsed.sender);
+          assert(parsed.sender == "+34666000333", "Wrong sender: " + parsed.sender);
           assert(parsed.message == "Hi there...", "Wrong message: " + parsed.message);
           printTestOk("Test6");
         } catch(err) {
@@ -249,7 +249,11 @@
         printTest("Test8");
         let parsed = PDU.parse("07914366060033F301000B914366060055F500040B48692074686572652E2E2E");
         try {
-          assert(parsed == null, "parsed != null");
+          assert(parsed != null, "parsed = null");
+          assert(parsed.SMSC == "+34666000333", "Wrong SMSC: " + parsed.SMSC);
+          assert(parsed.sender == "+34666000555", "Wrong sender: " + parsed.sender);
+          //TODO
+          assert(parsed.message == null, "Wrong message: " + parsed.message);
           printTestOk("Test8");
         } catch(err) {
           printTestError("Test8",err.message);
@@ -266,7 +270,11 @@
         printTest("Test9");
         let parsed = PDU.parse("07914366060033F301000B914366060055F500081600480069002000740068006500720065002E002E002E");
         try {
-          assert(parsed == null, "parsed != null");
+          assert(parsed != null, "parsed = null");
+          assert(parsed.SMSC == "+34666000333", "Wrong SMSC: " + parsed.SMSC);
+          assert(parsed.sender == "+34666000555", "Wrong sender: " + parsed.sender);
+          //TODO
+          assert(parsed.message == null, "Wrong message: " + parsed.message);
           printTestOk("Test9");
         } catch(err) {
           printTestError("Test9",err.message);
@@ -295,10 +303,7 @@
         printTest("Test11");
         let parsed = PDU.parse("   079143 66060088F801000B914366  161177F70 0000BC834888E2ECBCB2E970     B  ");
         try {
-          assert(parsed != null, "parsed = null");
-          assert(parsed.SMSC == "+34666000888", "Wrong SMSC: " + parsed.SMSC);
-          assert(parsed.sender == "+34666111777", "Wrong receiver: " + parsed.sender);
-          assert(parsed.message == "Hi there...", "Wrong message: " + parsed.message);
+          assert(parsed == null, "parsed = null");
           printTestOk("Test11");
         } catch(err) {
           printTestError("Test11",err.message);
