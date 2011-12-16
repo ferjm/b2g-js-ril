@@ -370,7 +370,7 @@ let GsmPDUHelper = {
     switch (codingScheme & 0xC0) {
       case 0x0:
         // bits 7..4 = 00xx
-        switch (codingScheme & 0xC) {
+        switch (codingScheme & 0x0C) {
           case 0x4:
             encoding = 8;
             break;
@@ -386,7 +386,7 @@ let GsmPDUHelper = {
             encoding = 16;
             break;
           case 0x30:
-            if (!codingScheme & 0x4) {
+            if (!codingScheme & 0x04) {
               encoding = 8;
             }
             break;
