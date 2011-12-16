@@ -417,6 +417,7 @@ let PDU = new function () {
   */
   this.parse = function (pdu) {
     mPdu = pdu;
+    mCurrent = 0;
 
     // Allow only hexadecimal
     //TODO replace this with in-place checks when reading data
@@ -433,7 +434,6 @@ let PDU = new function () {
       timestamp: null
     };
 
-    mCurrent = 0;
     // SMSC info
     let smscLength = readOctet();
     if (smscLength > 0) {
@@ -507,6 +507,7 @@ let PDU = new function () {
     } else {
       // - TP-Service-Center-Time-Stamp -
       let scTimeStamp = readSemiOctets(7);
+debug("timestamp: " + scTimeStamp);
       //TODO: convert to Date() object or Unixy timestamp
       var scTimeStampString = scTimeStamp.substring(4,6) + "/" +
                               scTimeStamp.substring(2,4) + "/" +
