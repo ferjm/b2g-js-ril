@@ -132,12 +132,17 @@ let PDU = {
                                       encoding,
                                       validity,
                                       udhi) {
+    // Empty message object. It gets filled bellow with the Short Message
+    // Service Center address in PDU format (if available) and with the 
+    // message PDU and then returned.
+    let sms = {
+      SMSC: null,
+      msg:  null
+    };
+
     // - SMSCA -
-    let smsca;
     if (scAddress != 0) {
-      smsca = this.serializeAddress(scAddress, true);
-    } else {
-      scAddress = "00";
+      sms.SMSC = this.serializeAddress(scAddress, true);
     }
 
     // - PDU-TYPE and MR-
@@ -166,49 +171,54 @@ let PDU = {
     //        0     1       SMS-SUBMIT (MS ==> SMSC)
 
     // PDU type. MTI is set to SMS-SUBMIT
-    let firstOctetAndMR = 1;
-    // Validity period
-    if (validity) {
-      firstOctetAndMR |= 0x10;
+    {
+      let firstOctetAndMR = 1;
+      // Validity period
+      if (validity) {
+        firstOctetAndMR |= 0x10;
+      }
+      if (udhi) {
+        firstOctetAndMR |= 0x40;
+      }
+      // Message reference
+      firstOctetAndMR += "00";
+      sms.msg = ("0000" + firstOctetAndMR).slice(-4);
     }
-    if (udhi) {
-      firstOctetAndMR |= 0x40;
-    }
-    // Message reference
-    firstOctetAndMR += "00";
-
     // - Destination Address -
     if (destinationAddress == undefined) {
       if (DEBUG) debug("PDU error: no destination address provided");
       return null;
     }
-    let smsReceiver = this.serializeAddress(destinationAddress);
+    sms.msg += this.serializeAddress(destinationAddress);
 
     // - Protocol Identifier -
-    let protocolID = "00";
+    sms.msg += "00";
 
     // - Data coding scheme -
     // For now it assumes bits 7..4 = 1111 except for the 16 bits use case
-    let dcs = 0;
-    switch (encoding) {
-      case 8:
-        dcs |= PDU_DCS_MSG_CODING_8BITS_ALPHABET;
-        break;
-      case 16:
-        dcs |= PDU_DCS_MSG_CODING_16BITS_ALPHABET;
-        break;
+    {
+      let dcs = 0;
+      switch (encoding) {
+        case 8:
+          dcs |= PDU_DCS_MSG_CODING_8BITS_ALPHABET;
+          break;
+        case 16:
+          dcs |= PDU_DCS_MSG_CODING_16BITS_ALPHABET;
+          break;
+      }
+      dcs = ("00" + dcs.toString(16)).slice(-2);
+      sms.msg += dcs;
     }
-    dcs = ("00" + dcs.toString(16).toUpperCase()).slice(-2);
 
     // - Validity Period -
     // TODO: Encode Validity Period. Not supported for the moment
 
     // - User Data Length -
-    // Phones allows empty sms
+    // Phones allow empty sms
     if (message == undefined) {
       if (DEBUG) debug("PDU warning: message is empty");
     }
-    let userDataLength = ("00" + message.length.toString(16)).slice(-2).toUpperCase();
+    sms.msg += ("00" + message.length.toString(16)).slice(-2);
 
     // - User Data -
     let userData = "";
@@ -220,7 +230,7 @@ let PDU = {
         for (let i = 0; i <= message.length; i++) {
           if (i == message.length) {
             if (octetnd.length) {
-              userData = userData + ("00" + parseInt(octetnd, 2).toString(16)).slice(-2);
+              sms.msg = sms.msg + ("00" + parseInt(octetnd, 2).toString(16)).slice(-2);
             }
             break;
           }
@@ -228,11 +238,10 @@ let PDU = {
           octet = ("00000000" + charcode).slice(-7);
           if (i != 0 && i % 8 != 0) {
             octetst = octet.substring(7 - (i) % 8);
-            userData = userData + parseInt((octetst + octetnd), 2).toString(16);
+            sms.msg = sms.msg + parseInt((octetst + octetnd), 2).toString(16);
           }
           octetnd = octet.substring(0, 7 - (i) % 8);
-        }
-        userData = userData.toUpperCase();
+        }        
         break;
       case 8:
         //TODO:
@@ -241,14 +250,8 @@ let PDU = {
         //TODO:
         break;
     }
-
-    return smsca + "" +
-          firstOctetAndMR + "" +
-          smsReceiver + "" +
-          protocolID + "" +
-          dcs + "" +
-          userDataLength + "" +
-          userData;
+    sms.msg = sms.msg.toUpperCase();
+    return sms;
   }
 
 };

@@ -392,7 +392,7 @@ let Buf = {
       let scAddress = document.getElementById("smsc").value;
       let destinationAddress = document.getElementById("receiverId").value;
       let message = document.getElementById("msg").value;
-      let serialized = GsmPDUHelper.writeMessage(scAddress,
+      let serialized = PDU.writeMessage(scAddress,
                                         destinationAddress,
                                         message,
                                         7);
@@ -400,7 +400,7 @@ let Buf = {
       let resultp = document.createElement("p");
       resultDiv.appendChild(resultp);
       let result = document.createElement("h5");
-      let resultStr = document.createTextNode(serialized);
+      let resultStr = document.createTextNode("SMSC: " + serialized.SMSC + " Msg: " + serialized.msg);
       result.appendChild(resultStr);
       resultp.appendChild(result);
     }
