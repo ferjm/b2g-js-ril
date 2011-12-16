@@ -222,19 +222,6 @@ const alphabet_7bit = [
 let PDU = new function () {
 
   /**
-   * Semi octets are decimal. Each pairs of digits needs to be swapped.
-   *
-   * TODO can we get rid of this? only needed by serialization at this point
-   */
-  function semiOctetToString(semiOctet) {
-    let out = "";
-    for (let i = 0; i < semiOctet.length; i += 2) {
-      out += semiOctet.charAt(i + 1) + semiOctet.charAt(i);
-    }
-    return out;
-  }
-
-  /**
    * Read a single hex-encoded octet from the PDU.
    */
   function readOctet() {
@@ -390,51 +377,8 @@ let PDU = new function () {
     }
   }
 
-  function serializeAddress(address, smsc) {
-    if (address == undefined) {
-      return "00";
-    }
-    // International format
-    let addressFormat;
-    if (address[0] == '+') {
-      addressFormat = PDU_TOA_INTERNATIONAL | PDU_TOA_ISDN; // 91
-      address = address.substring(1);
-    } else {
-      addressFormat = PDU_TOA_ISDN; // 81
-    }
-    // Add a trailing 'F'
-    let addressLength = address.length;
-    if (addressLength % 2 != 0) {
-      address += 'F';
-    }
-    // Convert into string
-    let address = semiOctetToString(address);
-    // Not sure why, but the addressLength is handled in a different way
-    // if it is an smsc address
-    if (smsc) {
-      addressLength = ("00" + parseInt((addressFormat.toString(16) + "" + address).length / 2)).slice(-2);
-    } else {
-      addressLength = ("00" + addressLength.toString(16)).slice(-2).toUpperCase();
-    }
-    return addressLength + "" + addressFormat.toString(16) + "" + address;
-  }
-
-  function charTo7BitCode(c) {
-    for (let i = 0; i < alphabet_7bit.length; i++) {
-      if (alphabet_7bit[i] == c) {
-        return i;
-      }
-    }
-    if (DEBUG) debug("PDU warning: No character found in default 7 bit alphabet for " + c);
-    return null;
-  }
-
   let mCurrent = 0;
   let mPdu = "";
-
-  /**
-  * Public API
-  */
 
   /**
   * Given a PDU string, this function returns a PDU object containing the
@@ -555,6 +499,66 @@ let PDU = new function () {
 
     return ret;
   };
+
+
+
+  /**
+   * Serializing
+   */
+
+  /**
+   * Semi octets are decimal. Each pairs of digits needs to be swapped.
+   *
+   * TODO can we get rid of this? only needed by serialization at this point
+   */
+  function stringToBCDString(semiOctet) {
+    let out = "";
+    for (let i = 0; i < semiOctet.length; i += 2) {
+      out += semiOctet.charAt(i + 1) + semiOctet.charAt(i);
+    }
+    return out;
+  }
+
+  function serializeAddress(address, smsc) {
+    if (address == undefined) {
+      return "00";
+    }
+    // International format
+    let addressFormat;
+    if (address[0] == '+') {
+      addressFormat = PDU_TOA_INTERNATIONAL | PDU_TOA_ISDN; // 91
+      address = address.substring(1);
+    } else {
+      addressFormat = PDU_TOA_ISDN; // 81
+    }
+    // Add a trailing 'F'
+    let addressLength = address.length;
+    if (addressLength % 2 != 0) {
+      address += 'F';
+    }
+    // Convert into string
+    let address = stringToBCDString(address);
+    // Not sure why, but the addressLength is handled in a different way
+    // if it is an smsc address
+    if (smsc) {
+      addressLength = ("00" + parseInt((addressFormat.toString(16) + "" + address).length / 2)).slice(-2);
+    } else {
+      addressLength = ("00" + addressLength.toString(16)).slice(-2).toUpperCase();
+    }
+    return addressLength + "" + addressFormat.toString(16) + "" + address;
+  }
+
+  function charTo7BitCode(c) {
+    for (let i = 0; i < alphabet_7bit.length; i++) {
+      if (alphabet_7bit[i] == c) {
+        return i;
+      }
+    }
+    if (DEBUG) debug("PDU warning: No character found in default 7 bit alphabet for " + c);
+    return null;
+  }
+
+
 
   /**
   *   Get a SMS-SUBMIT PDU for a destination address and a message using the
