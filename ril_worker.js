@@ -1630,14 +1630,13 @@ let GsmPDUHelper = {
           return null;
         }
         return this.readSeptetsToString(length);
-        break;
       case 8:
+        // Unsupported.
         return null;
-        break;
       case 16:
         return this.readUCS2String(length);
-        break;
     }
+    return null;
   },
 
   /**
@@ -1652,7 +1651,7 @@ let GsmPDUHelper = {
       SMSC:      null,
       reference: null,
       sender:    null,
-      message:   null,
+      body:      null,
       validity:  null,
       timestamp: null
     };
