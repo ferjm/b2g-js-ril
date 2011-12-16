@@ -100,6 +100,7 @@
     }
 
     function runBlackBoxTests() {
+      var start = Date.now();
       {
         // TEST 1
         // SMS-SUBMIT
@@ -320,6 +321,8 @@
           printTestError("Test12",err.message);
         }
       }
+
+      console.log("Tests took " + (Date.now() - start));
     }
 
     function serialize() {
