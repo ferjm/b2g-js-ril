@@ -51,7 +51,7 @@
  *
  * The three objects in this file represent individual parts of this
  * communication chain:
- * 
+ *
  * - RILMessageEvent -> Buf -> RIL -> Phone -> postMessage()
  * - "message" event -> Phone -> RIL -> Buf -> postRILMessage()
  *
@@ -514,7 +514,7 @@ let RIL = {
 
   /**
    * Retrieve the ICC card's status.
-   * 
+   *
    * Response will call Phone.onICCStatus().
    */
   getICCStatus: function getICCStatus() {
@@ -523,7 +523,7 @@ let RIL = {
 
   /**
    * Enter a PIN to unlock the ICC.
-   * 
+   *
    * @param pin
    *        String containing the PIN.
    *
@@ -702,6 +702,30 @@ let RIL = {
   },
 
   /**
+   * Start a DTMF Tone.
+   *
+   * @param dtmfChar
+   *        DTMF signal to send, 0-9, *, +
+   */
+
+  startDTMF: function startDTMF(dtmfChar) {
+	Buf.newParcel(REQUEST_DTMF_START);
+	Buf.writeString(dtmfChar);
+	Buf.sendParcel();
+  },
+
+  stopDTMF: function startDTMF() {
+	Buf.newParcel(REQUEST_DTMF_STOP);
+	Buf.sendParcel();
+  },
+
+  sendDTMF: function sendDTMF(dtmfChar) {
+	Buf.newParcel(REQUEST_DTMF);
+	Buf.writeString(dtmfChar);
+	Buf.sendParcel();
+  },
+
+  /**
    * Handle incoming requests from the RIL. We find the method that
    * corresponds to the request type. Incidentally, the request type
    * _is_ the method name, so that's easy.
@@ -849,7 +873,9 @@ RIL[REQUEST_OPERATOR] = function REQUEST_OPERATOR(length) {
   Phone.onOperator(operator);
 };
 RIL[REQUEST_RADIO_POWER] = null;
-RIL[REQUEST_DTMF] = null;
+RIL[REQUEST_DTMF] = function REQUEST_DTMF() {
+  Phone.onDTMFSend();
+};
 RIL[REQUEST_SEND_SMS] = function REQUEST_SEND_SMS() {
   let messageRef = Buf.readUint32();
   let ackPDU = p.readString();
@@ -892,8 +918,12 @@ RIL[REQUEST_QUERY_NETWORK_SELECTION_MODE] = function REQUEST_QUERY_NETWORK_SELEC
 RIL[REQUEST_SET_NETWORK_SELECTION_AUTOMATIC] = null;
 RIL[REQUEST_SET_NETWORK_SELECTION_MANUAL] = null;
 RIL[REQUEST_QUERY_AVAILABLE_NETWORKS] = null;
-RIL[REQUEST_DTMF_START] = null;
-RIL[REQUEST_DTMF_STOP] = null;
+RIL[REQUEST_DTMF_START] = function REQUEST_DTMF_START() {
+  Phone.onDTMFStart();
+};
+RIL[REQUEST_DTMF_STOP] = function REQUEST_DTMF_STOP() {
+  Phone.onDTMFStop();
+};
 RIL[REQUEST_BASEBAND_VERSION] = function REQUEST_BASEBAND_VERSION() {
   let version = Buf.readString();
   Phone.onBasebandVersion(version);
@@ -1296,7 +1326,16 @@ let Phone = {
 
   onSetMute: function onSetMute() {
   },
+  
+  onDTMFSend: function onDTMFSend() {
+  },
+  
+  onDTMFStart: function onDTMFStart() {
+  },
 
+  onDTMFStop: function onDTMFStop() {
+  },
+  
   onSendSMS: function onSendSMS(messageRef, ackPDU, errorCode) {
     //TODO
   },
@@ -1380,6 +1419,33 @@ let Phone = {
   },
 
   /**
+   * Send DTMF Tone
+   *
+   * @param dtmfChar
+   *        String containing the DTMF signal to send.
+   */
+  sendDTMF : function sendDTMF(options) {
+    RIL.sendDTMF(options.dtmfChar);
+  },
+
+  /**
+   * Start DTMF Tone
+   *
+   * @param dtmfChar
+   *        String containing the DTMF signal to send.
+   */
+  startDTMF : function startDTMF(options) {
+    RIL.startDTMF(options.dtmfChar);
+  },
+
+  /**
+   * Stop DTMF Tone
+   */
+  stopDTMF : function stopDTMF() {
+    RIL.stopDTMF();
+  },
+
+  /**
    * Hang up a call.
    *
    * @param callIndex
@@ -1434,9 +1500,9 @@ let Phone = {
 
   /**
    * Handle incoming messages from the main UI thread.
-   * 
+   *
    * @param message
-   *        Object containing the message. Messages are supposed 
+   *        Object containing the message. Messages are supposed
    */
   handleDOMMessage: function handleMessage(message) {
     if (DEBUG) debug("Received DOM message " + JSON.stringify(message));
