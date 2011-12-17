@@ -708,21 +708,20 @@ let RIL = {
    *        DTMF signal to send, 0-9, *, +
    */
 
-  startDTMF: function startDTMF(dtmfChar) {
-	Buf.newParcel(REQUEST_DTMF_START);
-	Buf.writeString(dtmfChar);
-	Buf.sendParcel();
+  startTone: function startTone(dtmfChar) {
+    Buf.newParcel(REQUEST_DTMF_START);
+    Buf.writeString(dtmfChar);
+    Buf.sendParcel();
   },
 
-  stopDTMF: function startDTMF() {
-	Buf.newParcel(REQUEST_DTMF_STOP);
-	Buf.sendParcel();
+  stopTone: function stopTone() {
+    Buf.simpleRequest(REQUEST_DTMF_STOP);
   },
 
-  sendDTMF: function sendDTMF(dtmfChar) {
-	Buf.newParcel(REQUEST_DTMF);
-	Buf.writeString(dtmfChar);
-	Buf.sendParcel();
+  sendTone: function sendTone(dtmfChar) {
+    Buf.newParcel(REQUEST_DTMF);
+    Buf.writeString(dtmfChar);
+    Buf.sendParcel();
   },
 
   /**
@@ -874,7 +873,7 @@ RIL[REQUEST_OPERATOR] = function REQUEST_OPERATOR(length) {
 };
 RIL[REQUEST_RADIO_POWER] = null;
 RIL[REQUEST_DTMF] = function REQUEST_DTMF() {
-  Phone.onDTMFSend();
+  Phone.onSendTone();
 };
 RIL[REQUEST_SEND_SMS] = function REQUEST_SEND_SMS() {
   let messageRef = Buf.readUint32();
@@ -919,10 +918,10 @@ RIL[REQUEST_SET_NETWORK_SELECTION_AUTOMATIC] = null;
 RIL[REQUEST_SET_NETWORK_SELECTION_MANUAL] = null;
 RIL[REQUEST_QUERY_AVAILABLE_NETWORKS] = null;
 RIL[REQUEST_DTMF_START] = function REQUEST_DTMF_START() {
-  Phone.onDTMFStart();
+  Phone.onStartTone();
 };
 RIL[REQUEST_DTMF_STOP] = function REQUEST_DTMF_STOP() {
-  Phone.onDTMFStop();
+  Phone.onStopTone();
 };
 RIL[REQUEST_BASEBAND_VERSION] = function REQUEST_BASEBAND_VERSION() {
   let version = Buf.readString();
@@ -1326,16 +1325,16 @@ let Phone = {
 
   onSetMute: function onSetMute() {
   },
-  
-  onDTMFSend: function onDTMFSend() {
-  },
-  
-  onDTMFStart: function onDTMFStart() {
+
+  onSendTone: function onSendTone() {
   },
 
-  onDTMFStop: function onDTMFStop() {
+  onStartTone: function onStartTone() {
   },
-  
+
+  onStopTone: function onStopTone() {
+  },
+
   onSendSMS: function onSendSMS(messageRef, ackPDU, errorCode) {
     //TODO
   },
@@ -1424,8 +1423,8 @@ let Phone = {
    * @param dtmfChar
    *        String containing the DTMF signal to send.
    */
-  sendDTMF : function sendDTMF(options) {
-    RIL.sendDTMF(options.dtmfChar);
+  sendTone: function sendTone(options) {
+    RIL.sendTone(options.dtmfChar);
   },
 
   /**
@@ -1434,15 +1433,15 @@ let Phone = {
    * @param dtmfChar
    *        String containing the DTMF signal to send.
    */
-  startDTMF : function startDTMF(options) {
-    RIL.startDTMF(options.dtmfChar);
+  startTone: function startTone(options) {
+    RIL.startTone(options.dtmfChar);
   },
 
   /**
    * Stop DTMF Tone
    */
-  stopDTMF : function stopDTMF() {
-    RIL.stopDTMF();
+  stopTone: function stopTone() {
+    RIL.stopTone();
   },
 
   /**
