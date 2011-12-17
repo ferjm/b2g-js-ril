@@ -1315,6 +1315,17 @@ let Phone = {
     let message = GsmPDUHelper.readMessage();
     debug(message);
 
+    // Read string delimiters. See Buf.readString().
+    let delimiter = this.readUint16();
+    if (!(messageStringLength & 1)) {
+      delimiter |= this.readUint16();
+    }
+    if (DEBUG) {
+      if (delimiter != 0) {
+        debug("Something's wrong, found string delimiter: " + delimiter);
+      }
+    }
+
     message.type = "sms-received";
     this.sendDOMMessage(message);
 
