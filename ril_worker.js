@@ -725,11 +725,23 @@ let RIL = {
   },
 
   /**
-   * Get the Short Message Service Center Address
+   * Get the Short Message Service Center address.
    */
   getSMSCAddress: function getSMSCAddress() {
     Buf.simpleRequest(REQUEST_GET_SMSC_ADDRESS);
   },
+
+  /**
+   * Set the Short Message Service Center address.
+   *
+   * @param smsc
+   *        Short Message Service Center address in PDU format.
+   */
+   setSMSCAddress: function setSMSCAddress(smsc) {
+     Buf.newParcel(REQUEST_SET_SMSC_ADDRESS);
+     Buf.writeString(smsc);
+     Buf.sendParcel();
+   },
 
   /**
    * Handle incoming requests from the RIL. We find the method that
@@ -986,9 +998,11 @@ RIL[REQUEST_DEVICE_IDENTITY] = null;
 RIL[REQUEST_EXIT_EMERGENCY_CALLBACK_MODE] = null;
 RIL[REQUEST_GET_SMSC_ADDRESS] = function REQUEST_GET_SMSC_ADDRESS() {
   let smsc = Buf.readString();
-  Phone.onSMSC(smsc);
+  Phone.onGetSMSC(smsc);
 };
-RIL[REQUEST_SET_SMSC_ADDRESS] = null;
+RIL[REQUEST_SET_SMSC_ADDRESS] = function REQUEST_SET_SMSC_ADDRESS() {
+  Phone.onSetSMSC();
+};
 RIL[REQUEST_REPORT_SMS_MEMORY_STATUS] = null;
 RIL[REQUEST_REPORT_STK_SERVICE_IS_RUNNING] = null;
 RIL[UNSOLICITED_RESPONSE_RADIO_STATE_CHANGED] = function UNSOLICITED_RESPONSE_RADIO_STATE_CHANGED() {
@@ -1346,8 +1360,11 @@ let Phone = {
   onStopTone: function onStopTone() {
   },
 
-  onSMSC: function onSMSC(smsc) {
+  onGetSMSC: function onGetSMSC(smsc) {
     this.SMSC = smsc;
+  },
+
+  onSetSMSC: function onSetSMSC() {
   },
 
   onSendSMS: function onSendSMS(messageRef, ackPDU, errorCode) {
