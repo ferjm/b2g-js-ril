@@ -725,6 +725,13 @@ let RIL = {
   },
 
   /**
+   * Get the Short Message Service Center Address
+   */
+  getSMSCAddress: function getSMSCAddress() {
+    Buf.simpleRequest(REQUEST_GET_SMSC_ADDRESS);
+  },
+
+  /**
    * Handle incoming requests from the RIL. We find the method that
    * corresponds to the request type. Incidentally, the request type
    * _is_ the method name, so that's easy.
@@ -977,7 +984,10 @@ RIL[REQUEST_CDMA_WRITE_SMS_TO_RUIM] = null;
 RIL[REQUEST_CDMA_DELETE_SMS_ON_RUIM] = null;
 RIL[REQUEST_DEVICE_IDENTITY] = null;
 RIL[REQUEST_EXIT_EMERGENCY_CALLBACK_MODE] = null;
-RIL[REQUEST_GET_SMSC_ADDRESS] = null;
+RIL[REQUEST_GET_SMSC_ADDRESS] = function REQUEST_GET_SMSC_ADDRESS() {
+  let smsc = Buf.readString();
+  Phone.onSMSC(smsc);
+};
 RIL[REQUEST_SET_SMSC_ADDRESS] = null;
 RIL[REQUEST_REPORT_SMS_MEMORY_STATUS] = null;
 RIL[REQUEST_REPORT_STK_SERVICE_IS_RUNNING] = null;
@@ -1064,6 +1074,7 @@ let Phone = {
   IMEI: null,
   IMEISV: null,
   IMSI: null,
+  SMSC: null,
 
   /**
    * List of strings identifying the network operator.
@@ -1333,6 +1344,10 @@ let Phone = {
   },
 
   onStopTone: function onStopTone() {
+  },
+
+  onSMSC: function onSMSC(smsc) {
+    this.SMSC = smsc;
   },
 
   onSendSMS: function onSendSMS(messageRef, ackPDU, errorCode) {
