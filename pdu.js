@@ -136,14 +136,14 @@ let PDU = {
     // Empty message object. It gets filled bellow with the Short Message
     // Service Center address in PDU format (if available) and with the
     // message PDU and then returned.
-    let sms = {
+    let msg = {
       SMSC: null,
-      msg:  null
+      pdu:  null
     };
 
     // - SMSCA -
     if (scAddress != 0) {
-      sms.SMSC = this.serializeAddress(scAddress, true);
+      msg.SMSC = this.serializeAddress(scAddress, true);
     }
 
     // - PDU-TYPE and MR-
@@ -183,17 +183,17 @@ let PDU = {
       }
       // Message reference
       firstOctetAndMR += "00";
-      sms.msg = ("0000" + firstOctetAndMR).slice(-4);
+      msg.pdu = ("0000" + firstOctetAndMR).slice(-4);
     }
     // - Destination Address -
     if (destinationAddress == undefined) {
       if (DEBUG) debug("PDU error: no destination address provided");
       return null;
     }
-    sms.msg += this.serializeAddress(destinationAddress);
+    msg.pdu += this.serializeAddress(destinationAddress);
 
     // - Protocol Identifier -
-    sms.msg += "00";
+    msg.pdu += "00";
 
     // - Data coding scheme -
     // For now it assumes bits 7..4 = 1111 except for the 16 bits use case
@@ -208,7 +208,7 @@ let PDU = {
           break;
       }
       dcs = ("00" + dcs.toString(16)).slice(-2);
-      sms.msg += dcs;
+      msg.pdu += dcs;
     }
 
     // - Validity Period -
@@ -219,7 +219,7 @@ let PDU = {
     if (message == undefined) {
       if (DEBUG) debug("PDU warning: message is empty");
     }
-    sms.msg += ("00" + message.length.toString(16)).slice(-2);
+    msg.pdu += ("00" + message.length.toString(16)).slice(-2);
 
     // - User Data -
     let userData = "";
@@ -231,7 +231,7 @@ let PDU = {
         for (let i = 0; i <= message.length; i++) {
           if (i == message.length) {
             if (octetnd.length) {
-              sms.msg = sms.msg + ("00" + parseInt(octetnd, 2).toString(16)).slice(-2);
+              msg.pdu = msg.pdu + ("00" + parseInt(octetnd, 2).toString(16)).slice(-2);
             }
             break;
           }
@@ -239,7 +239,7 @@ let PDU = {
           octet = ("00000000" + charcode).slice(-7);
           if (i != 0 && i % 8 != 0) {
             octetst = octet.substring(7 - (i) % 8);
-            sms.msg = sms.msg + parseInt((octetst + octetnd), 2).toString(16);
+            msg.pdu = msg.pdu + parseInt((octetst + octetnd), 2).toString(16);
           }
           octetnd = octet.substring(0, 7 - (i) % 8);
         }
@@ -251,8 +251,7 @@ let PDU = {
         //TODO:
         break;
     }
-    sms.msg = sms.msg.toUpperCase();
-    return sms;
+    msg.pdu = msg.pdu.toUpperCase();
+    return msg;
   }
-
 };

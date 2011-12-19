@@ -400,7 +400,7 @@ let Buf = {
       let resultp = document.createElement("p");
       resultDiv.appendChild(resultp);
       let result = document.createElement("h5");
-      let resultStr = document.createTextNode("SMSC: " + serialized.SMSC + " Msg: " + serialized.msg);
+      let resultStr = document.createTextNode("SMSC: " + serialized.SMSC + " PDU: " + serialized.pdu);
       result.appendChild(resultStr);
       resultp.appendChild(result);
     }
