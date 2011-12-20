@@ -1181,6 +1181,7 @@ let Phone = {
       RIL.getICCStatus();
       this.requestNetworkInfo();
       RIL.getSignalStrength();
+      RIL.getSMSCAddress();
       this.sendDOMMessage({type: "cardstatechange",
                            cardState: DOM_CARDSTATE_READY});
     }
