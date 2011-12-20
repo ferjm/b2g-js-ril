@@ -896,8 +896,8 @@ RIL[REQUEST_DTMF] = function REQUEST_DTMF() {
 };
 RIL[REQUEST_SEND_SMS] = function REQUEST_SEND_SMS() {
   let messageRef = Buf.readUint32();
-  let ackPDU = p.readString();
-  let errorCode = p.readUint32();
+  let ackPDU = Buf.readString();
+  let errorCode = Buf.readUint32();
   Phone.onSendSMS(messageRef, ackPDU, errorCode);
 };
 RIL[REQUEST_SEND_SMS_EXPECT_MORE] = null;
@@ -1368,7 +1368,11 @@ let Phone = {
   },
 
   onSendSMS: function onSendSMS(messageRef, ackPDU, errorCode) {
-    //TODO
+    // Successfull completion of sendSMS.
+    this.sendDOMMessage({type: "sendsms",
+                        messageRef: messageRef,
+                        ackPDU: ackPDU,
+                        errorCode: errorCode});
   },
 
   onNewSMS: function onNewSMS(payloadLength) {
@@ -1523,23 +1527,29 @@ let Phone = {
    *        String containing the message text.
    */
   sendSMS: function sendSMS(options) {
-    //TODO munge options.number and options.message into PDU format
-    let smscPDU = "";
-    let pdu = "";
     // Get the SMS Center address
-    // TODO: Figure out when to get this info. onRadioStateChanged? SIM state?
     if (!this.SMSC) {
+      if (DEBUG) {
+        debug("Cannot send the SMS. Need to get the SMSC address first");
+      }
       RIL.getSMSCAddress();
+      // TODO: should we wait for it and retry? Should we return?
+      return;
     }
-    // TODO: Where to get the prefered encoding
-    let msg = GsmPDUHelper.writeMessage("", 
-                                        options.number, 
+    // TODO: Where to get the prefered encoding. Settings?
+    let msg = GsmPDUHelper.writeMessage(options.number,
                                         options.message,
                                         7);
     if (DEBUG) {
-      debug('SMSC: ' + this.SMSC + ' PDU: ' + msg.pdu);
+      debug("SMSC: " + this.SMSC + " PDU: " + msg);
     }
-    RIL.sendSMS(this.SMSC, msg.pdu);
+    if (msg) {
+      RIL.sendSMS(this.SMSC, msg);
+    } else {
+      if (DEBUG) {
+        debug("Error sending SMS. Not valid serialized pdu");
+      }
+    }
   },
 
   /**
@@ -1925,13 +1935,10 @@ let GsmPDUHelper = {
     return null;
   },
 
-
   /**
   *   Get a SMS-SUBMIT PDU for a destination address and a message using the
   *   specified encoding.
   *
-  *   @param scAddress
-  *          String containing the address (number) of the SMS Service Center
   *   @param destinationAddress
   *          String containing the address (number) of the SMS receiver
   *   @param message
@@ -1954,8 +1961,7 @@ let GsmPDUHelper = {
   *   UDL - User Data Length - 1 octet
   *   UD - User Data - 140 octets
   */
-  writeMessage: function writeMessage(scAddress,
-                                      destinationAddress,
+  writeMessage: function writeMessage(destinationAddress,
                                       message,
                                       encoding,
                                       validity,
@@ -1963,15 +1969,9 @@ let GsmPDUHelper = {
     // Empty message object. It gets filled bellow with the Short Message
     // Service Center address in PDU format (if available) and with the
     // message PDU and then returned.
-    let msg = {
-      SMSC: null,
-      pdu:  null
-    };
-
-    // - SMSCA -
-    if (scAddress != 0) {
-      msg.SMSC = this.serializeAddress(scAddress, true);
-    }
+    // Empty message string. It gets filled bellow with the serialized
+    // parameters data.
+    let pdu = null;
 
     // - PDU-TYPE and MR-
 
@@ -2010,17 +2010,17 @@ let GsmPDUHelper = {
       }
       // Message reference
       firstOctetAndMR += "00";
-      msg.pdu = ("0000" + firstOctetAndMR).slice(-4);
+      pdu = ("0000" + firstOctetAndMR).slice(-4);
     }
     // - Destination Address -
     if (destinationAddress == undefined) {
       if (DEBUG) debug("PDU error: no destination address provided");
       return null;
     }
-    msg.pdu += this.serializeAddress(destinationAddress);
+    pdu += this.serializeAddress(destinationAddress);
 
     // - Protocol Identifier -
-    msg.pdu += "00";
+    pdu += "00";
 
     // - Data coding scheme -
     // For now it assumes bits 7..4 = 1111 except for the 16 bits use case
@@ -2035,7 +2035,7 @@ let GsmPDUHelper = {
           break;
       }
       dcs = ("00" + dcs.toString(16)).slice(-2);
-      msg.pdu += dcs;
+      pdu += dcs;
     }
 
     // - Validity Period -
@@ -2046,7 +2046,7 @@ let GsmPDUHelper = {
     if (message == undefined) {
       if (DEBUG) debug("PDU warning: message is empty");
     }
-    msg.pdu += ("00" + message.length.toString(16)).slice(-2);
+    pdu += ("00" + message.length.toString(16)).slice(-2);
 
     // - User Data -
     let userData = "";
@@ -2058,7 +2058,7 @@ let GsmPDUHelper = {
         for (let i = 0; i <= message.length; i++) {
           if (i == message.length) {
             if (octetnd.length) {
-              msg.pdu = msg.pdu + ("00" + parseInt(octetnd, 2).toString(16)).slice(-2);
+              pdu = pdu + ("00" + parseInt(octetnd, 2).toString(16)).slice(-2);
             }
             break;
           }
@@ -2066,7 +2066,7 @@ let GsmPDUHelper = {
           octet = ("00000000" + charcode).slice(-7);
           if (i != 0 && i % 8 != 0) {
             octetst = octet.substring(7 - (i) % 8);
-            msg.pdu = msg.pdu + parseInt((octetst + octetnd), 2).toString(16);
+            pdu = pdu + parseInt((octetst + octetnd), 2).toString(16);
           }
           octetnd = octet.substring(0, 7 - (i) % 8);
         }
@@ -2078,8 +2078,7 @@ let GsmPDUHelper = {
         //TODO:
         break;
     }
-    msg.pdu = msg.pdu.toUpperCase();
-    return msg;
+    return pdu;
   }
 };
 
