@@ -83,7 +83,7 @@ let PDU = {
     if (smsc) {
       addressLength = ("00" + parseInt((addressFormat.toString(16) + "" + address).length / 2)).slice(-2);
     } else {
-      addressLength = ("00" + addressLength.toString(16)).slice(-2).toUpperCase();
+      addressLength = ("00" + addressLength.toString(16)).slice(-2);
     }
     return addressLength + "" + addressFormat.toString(16) + "" + address;
   },
@@ -103,8 +103,6 @@ let PDU = {
   *   Get a SMS-SUBMIT PDU for a destination address and a message using the
   *   specified encoding.
   *
-  *   @param scAddress
-  *          String containing the address (number) of the SMS Service Center
   *   @param destinationAddress
   *          String containing the address (number) of the SMS receiver
   *   @param message
@@ -127,8 +125,7 @@ let PDU = {
   *   UDL - User Data Length - 1 octet
   *   UD - User Data - 140 octets
   */
-  writeMessage: function writeMessage(scAddress,
-                                      destinationAddress,
+  writeMessage: function writeMessage(destinationAddress,
                                       message,
                                       encoding,
                                       validity,
@@ -136,15 +133,9 @@ let PDU = {
     // Empty message object. It gets filled bellow with the Short Message
     // Service Center address in PDU format (if available) and with the
     // message PDU and then returned.
-    let msg = {
-      SMSC: null,
-      pdu:  null
-    };
-
-    // - SMSCA -
-    if (scAddress != 0) {
-      msg.SMSC = this.serializeAddress(scAddress, true);
-    }
+    // Empty message string. It gets filled bellow with the serialized
+    // parameters data.
+    let pdu = null;
 
     // - PDU-TYPE and MR-
 
@@ -183,17 +174,17 @@ let PDU = {
       }
       // Message reference
       firstOctetAndMR += "00";
-      msg.pdu = ("0000" + firstOctetAndMR).slice(-4);
+      pdu = ("0000" + firstOctetAndMR).slice(-4);
     }
     // - Destination Address -
     if (destinationAddress == undefined) {
       if (DEBUG) debug("PDU error: no destination address provided");
       return null;
     }
-    msg.pdu += this.serializeAddress(destinationAddress);
+    pdu += this.serializeAddress(destinationAddress);
 
     // - Protocol Identifier -
-    msg.pdu += "00";
+    pdu += "00";
 
     // - Data coding scheme -
     // For now it assumes bits 7..4 = 1111 except for the 16 bits use case
@@ -208,7 +199,7 @@ let PDU = {
           break;
       }
       dcs = ("00" + dcs.toString(16)).slice(-2);
-      msg.pdu += dcs;
+      pdu += dcs;
     }
 
     // - Validity Period -
@@ -219,7 +210,7 @@ let PDU = {
     if (message == undefined) {
       if (DEBUG) debug("PDU warning: message is empty");
     }
-    msg.pdu += ("00" + message.length.toString(16)).slice(-2);
+    pdu += ("00" + message.length.toString(16)).slice(-2);
 
     // - User Data -
     let userData = "";
@@ -231,15 +222,15 @@ let PDU = {
         for (let i = 0; i <= message.length; i++) {
           if (i == message.length) {
             if (octetnd.length) {
-              msg.pdu = msg.pdu + ("00" + parseInt(octetnd, 2).toString(16)).slice(-2);
+              pdu = pdu + ("00" + parseInt(octetnd, 2).toString(16)).slice(-2);
             }
             break;
           }
           let charcode = this.charTo7BitCode(message.charAt(i)).toString(2);
-          octet = ("00000000" + charcode).slice(-7);
+          octet = ("0000000" + charcode).slice(-7);
           if (i != 0 && i % 8 != 0) {
             octetst = octet.substring(7 - (i) % 8);
-            msg.pdu = msg.pdu + parseInt((octetst + octetnd), 2).toString(16);
+            pdu = pdu + ("00" + parseInt((octetst + octetnd), 2).toString(16)).slice(-2);
           }
           octetnd = octet.substring(0, 7 - (i) % 8);
         }
@@ -251,7 +242,6 @@ let PDU = {
         //TODO:
         break;
     }
-    msg.pdu = msg.pdu.toUpperCase();
-    return msg;
+    return pdu;
   }
 };
