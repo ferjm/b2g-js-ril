@@ -227,10 +227,10 @@ let PDU = {
             break;
           }
           let charcode = this.charTo7BitCode(message.charAt(i)).toString(2);
-          octet = ("00000000" + charcode).slice(-7);
+          octet = ("0000000" + charcode).slice(-7);
           if (i != 0 && i % 8 != 0) {
             octetst = octet.substring(7 - (i) % 8);
-            pdu = pdu + parseInt((octetst + octetnd), 2).toString(16);
+            pdu = pdu + ("00" + parseInt((octetst + octetnd), 2).toString(16)).slice(-2);
           }
           octetnd = octet.substring(0, 7 - (i) % 8);
         }
