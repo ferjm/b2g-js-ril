@@ -71,6 +71,7 @@ const UINT8_SIZE  = 1;
 const UINT16_SIZE = 2;
 const UINT32_SIZE = 4;
 const PARCEL_SIZE_SIZE = UINT32_SIZE;
+const STRING_SIZE_SIZE = UINT32_SIZE;
 
 /**
  * This object contains helpers buffering incoming data & deconstructing it
@@ -102,6 +103,9 @@ let Buf = {
 
     // Leave room for the parcel size for outgoing parcels.
     this.outgoingIndex = PARCEL_SIZE_SIZE;
+
+    // Leave room for the string size for new strings.
+    this.newStringIndex = 0;
 
     // How many bytes we've read for this parcel so far.
     this.readIncoming = 0;
@@ -296,6 +300,36 @@ let Buf = {
     this.writeUint32(strings.length);
     for (let i = 0; i < strings.length; i++) {
       this.writeString(strings[i]);
+    }
+  },
+
+  newString: function newString() {
+    // String size will allways be the first byte of the string in its parcel
+    // representation, but it is the last thing to be written, so we need to
+    // store the current index off to a temporary to be reset after we write
+    // the string size.
+    this.newStringIndex = this.outgoingIndex;
+    // We also need to leave room for the string size
+    this.outgoingIndex += STRING_SIZE_SIZE;
+  },
+
+  finishString: function finishString() {
+    // Compute the size of the string and write it to the front of the string
+    // where we left rooom for it.
+    let stringSize = this.outgoingIndex - (this.newStringIndex + STRING_SIZE_SIZE);
+    let currentIndex = this.outgoingIndex;
+    this.outgoingIndex = this.newStringIndex;
+    this.writeUint8((stringSize >> 24) & 0xff);
+    this.writeUint8((stringSize >> 16) & 0xff);
+    this.writeUint8((stringSize >> 8) & 0xff);
+    this.writeUint8(stringSize & 0xff);
+    // Restart the indexes
+    this.outgoingIndex = currentIndex;
+    this.newStringIndex = 0;
+    // Write the end of string as \0\0 in case of string length even or \0 odd
+    this.writeUint16(0);
+    if(!(stringSize & 1)) {
+      this.writeUint16(0);
     }
   },
 
