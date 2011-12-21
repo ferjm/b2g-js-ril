@@ -1915,7 +1915,7 @@ let GsmPDUHelper = {
     return out;
   },
 
-  serializeAddress: function serializeAddress(address, smsc) {
+  serializeAddress: function serializeAddress(address) {
     if (address == undefined) {
       return "00";
     }
@@ -1934,13 +1934,7 @@ let GsmPDUHelper = {
     }
     // Convert into string
     let address = this.stringToBCDString(address);
-    // Not sure why, but the addressLength is handled in a different way
-    // if it is an smsc address
-    if (smsc) {
-      addressLength = ("00" + parseInt((addressFormat.toString(16) + "" + address).length / 2)).slice(-2);
-    } else {
-      addressLength = ("00" + addressLength.toString(16)).slice(-2).toUpperCase();
-    }
+    addressLength = ("00" + addressLength.toString(16)).slice(-2).toUpperCase();
     return addressLength + "" + addressFormat.toString(16) + "" + address;
   },
 
@@ -2014,31 +2008,35 @@ let GsmPDUHelper = {
 
     // PDU type. MTI is set to SMS-SUBMIT
     {
-      let firstOctetAndMR = 1;
+      let firstOctet = 1;
       // Validity period
       if (validity) {
-        firstOctetAndMR |= 0x10;
+        firstOctet |= 0x10;
       }
       if (udhi) {
-        firstOctetAndMR |= 0x40;
+        firstOctet |= 0x40;
       }
-      // Message reference
-      firstOctetAndMR += "00";
-      firstOctetAndMR = ("0000" + firstOctetAndMR).slice(-4);
-      // TODO: temporary. just for testing
-      for (let i = 0; i < firstOctetAndMR.length; i++) {
-        Buf.writeUint16(firstOctetAndMR.charCodeAt(i));
-      }
+      firstOctet = ("00" + firstOctet).slice(-2);
+      Buf.writeUint16(firstOctet.charCodeAt(0));
+      Buf.writeUint16(firstOctet.charCodeAt(1));
     }
+
+    // Message reference 00
+    Buf.writeUint16(48);
+    Buf.writeUint16(48);
+
     // - Destination Address -
     if (destinationAddress == undefined) {
       if (DEBUG) debug("PDU error: no destination address provided");
       return null;
     }
+
     // TODO: temporary. just for testing
-    let tmpDestinationAddress = this.serializeAddress(destinationAddress);
-    for (let i = 0; i < tmpDestinationAddress.length; i++) {
-      Buf.writeUint16(tmpDestinationAddress.charCodeAt(i));
+    {
+      let tmpDestinationAddress = this.serializeAddress(destinationAddress);
+      for (let i = 0; i < tmpDestinationAddress.length; i++) {
+        Buf.writeUint16(tmpDestinationAddress.charCodeAt(i));
+      }
     }
 
     // - Protocol Identifier -
@@ -2058,9 +2056,8 @@ let GsmPDUHelper = {
           break;
       }
       dcs = ("00" + dcs.toString(16)).slice(-2);
-      for (let i = 0; i < dcs.length; i++) {
-        Buf.writeUint16(dcs.charCodeAt(i));
-      }
+      Buf.writeUint16(dcs.charCodeAt(0));
+      Buf.writeUint16(dcs.charCodeAt(1));
     }
 
     // - Validity Period -
@@ -2068,13 +2065,13 @@ let GsmPDUHelper = {
 
     // - User Data Length -
     // Phones allow empty sms
-    if (message == undefined) {
-      if (DEBUG) debug("PDU warning: message is empty");
-    }
-    // TODO: temporary. just for testing
-    let messageLength = ("00" + message.length.toString(16)).slice(-2);
-    for (let i = 0; i < messageLength.length; i++) {
-      Buf.writeUint16(messageLength.charCodeAt(i));
+    {
+      if (message == undefined) {
+        if (DEBUG) debug("PDU warning: message is empty");
+      }
+      let messageLength = ("00" + message.length.toString(16)).slice(-2);
+      Buf.writeUint16(messageLength.charCodeAt(0));
+      Buf.writeUint16(messageLength.charCodeAt(1));
     }
 
     // - User Data -
