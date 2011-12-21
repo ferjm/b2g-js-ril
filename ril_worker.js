@@ -303,7 +303,7 @@ let Buf = {
     }
   },
 
-  newString: function newString() {
+  startString: function startString() {
     // String size will allways be the first byte of the string in its parcel
     // representation, but it is the last thing to be written, so we need to
     // store the current index off to a temporary to be reset after we write
@@ -316,13 +316,10 @@ let Buf = {
   finishString: function finishString() {
     // Compute the size of the string and write it to the front of the string
     // where we left rooom for it.
-    let stringSize = this.outgoingIndex - (this.newStringIndex + STRING_SIZE_SIZE);
+    let stringSize = (this.outgoingIndex - (this.newStringIndex + STRING_SIZE_SIZE)) / 2;
     let currentIndex = this.outgoingIndex;
     this.outgoingIndex = this.newStringIndex;
-    this.writeUint8((stringSize >> 24) & 0xff);
-    this.writeUint8((stringSize >> 16) & 0xff);
-    this.writeUint8((stringSize >> 8) & 0xff);
-    this.writeUint8(stringSize & 0xff);
+    this.writeUint32(stringSize);
     // Restart the indexes
     this.outgoingIndex = currentIndex;
     this.newStringIndex = 0;
