@@ -2084,7 +2084,9 @@ let GsmPDUHelper = {
         for (let i = 0; i <= message.length; i++) {
           if (i == message.length) {
             if (octetnd.length) {
-              pdu = pdu + ("00" + parseInt(octetnd, 2).toString(16)).slice(-2);
+              let hex = ("00" + parseInt(octetnd, 2).toString(16)).slice(-2);
+              Buf.writeUint16(hex.charCodeAt(0));
+              Buf.writeUint16(hex.charCodeAt(0));
             }
             break;
           }
@@ -2092,7 +2094,9 @@ let GsmPDUHelper = {
           octet = ("00000000" + charcode).slice(-7);
           if (i != 0 && i % 8 != 0) {
             octetst = octet.substring(7 - (i) % 8);
-            pdu = pdu + ("00" + parseInt((octetst + octetnd), 2).toString(16)).slice(-2);
+            let hex = ("00" + parseInt((octetst + octetnd), 2).toString(16)).slice(-2);
+            Buf.writeUint16(hex.charCodeAt(0));
+            Buf.writeUint16(hex.charCodeAt(1));
           }
           octetnd = octet.substring(0, 7 - (i) % 8);
         }
@@ -2103,10 +2107,6 @@ let GsmPDUHelper = {
       case 16:
         //TODO:
         break;
-    }
-    // TODO: temporary. just for testing
-    for (let i = 0; i < pdu.length; i++) {
-      Buf.writeUint16(pdu.charCodeAt(i));
     }
     // Write end of string to Buf
     Buf.finishString();
