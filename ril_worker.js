@@ -1902,42 +1902,6 @@ let GsmPDUHelper = {
     return msg;
   },
 
-  /**
-   * Semi octets are decimal. Each pairs of digits needs to be swapped.
-   *
-   * TODO can we get rid of this? only needed by serialization at this point
-   */
-  stringToBCDString: function stringToBCDString(semiOctet) {
-    let out = "";
-    for (let i = 0; i < semiOctet.length; i += 2) {
-      out += semiOctet.charAt(i + 1) + semiOctet.charAt(i);
-    }
-    return out;
-  },
-
-  serializeAddress: function serializeAddress(address) {
-    if (address == undefined) {
-      return "00";
-    }
-    // International format
-    let addressFormat;
-    if (address[0] == '+') {
-      addressFormat = PDU_TOA_INTERNATIONAL | PDU_TOA_ISDN; // 91
-      address = address.substring(1);
-    } else {
-      addressFormat = PDU_TOA_ISDN; // 81
-    }
-    // Add a trailing 'F'
-    let addressLength = address.length;
-    if (addressLength % 2 != 0) {
-      address += 'F';
-    }
-    // Convert into string
-    let address = this.stringToBCDString(address);
-    addressLength = ("00" + addressLength.toString(16)).slice(-2);
-    return addressLength + "" + addressFormat.toString(16) + "" + address;
-  },
-
   charTo7BitCode: function charTo7BitCode(c) {
     for (let i = 0; i < alphabet_7bit.length; i++) {
       if (alphabet_7bit[i] == c) {
@@ -1946,6 +1910,11 @@ let GsmPDUHelper = {
     }
     if (DEBUG) debug("PDU warning: No character found in default 7 bit alphabet for " + c);
     return null;
+  },
+
+  writeHexCode: function writeHexCode(code) {
+    Buf.writeUint16(code.charCodeAt(0));
+    Buf.writeUint16(code.charCodeAt(1));
   },
 
   /**
@@ -1981,7 +1950,7 @@ let GsmPDUHelper = {
     // Start the string to write to the circular buffer
     Buf.startString();
 
-    // - PDU-TYPE and MR-
+    // - PDU-TYPE-
 
     // +--------+----------+---------+---------+--------+---------+
     // | RP (1) | UDHI (1) | SRR (1) | VPF (2) | RD (1) | MTI (2) |
@@ -2017,8 +1986,7 @@ let GsmPDUHelper = {
         firstOctet |= 0x40;
       }
       firstOctet = ("00" + firstOctet).slice(-2);
-      Buf.writeUint16(firstOctet.charCodeAt(0));
-      Buf.writeUint16(firstOctet.charCodeAt(1));
+      this.writeHexCode(firstOctet);
     }
 
     // Message reference 00
@@ -2030,13 +1998,27 @@ let GsmPDUHelper = {
       if (DEBUG) debug("PDU error: no destination address provided");
       return null;
     }
-
-    // TODO: temporary. just for testing
-    {
-      let tmpDestinationAddress = this.serializeAddress(destinationAddress);
-      for (let i = 0; i < tmpDestinationAddress.length; i++) {
-        Buf.writeUint16(tmpDestinationAddress.charCodeAt(i));
-      }
+    // International format
+    let addressFormat;
+    if (destinationAddress[0] == '+') {
+      addressFormat = PDU_TOA_INTERNATIONAL | PDU_TOA_ISDN; // 91
+      destinationAddress = destinationAddress.substring(1);
+    } else {
+      addressFormat = PDU_TOA_ISDN; // 81
+    }
+    // Add a trailing 'F'
+    let addressLength = destinationAddress.length;
+    if (addressLength % 2 != 0) {
+      destinationAddress += 'F';
+    }
+    addressLength = ("00" + addressLength.toString(16)).slice(-2);
+    this.writeHexCode(addressLength);
+    addressFormat = ("00" + addressFormat.toString(16)).slice(-2);
+    this.writeHexCode(addressFormat);
+    // Convert into string
+    for (let i = 0; i < destinationAddress.length; i += 2) {
+      Buf.writeUint16(destinationAddress.charCodeAt(i + 1));
+      Buf.writeUint16(destinationAddress.charCodeAt(i));
     }
 
     // - Protocol Identifier -
@@ -2056,8 +2038,7 @@ let GsmPDUHelper = {
           break;
       }
       dcs = ("00" + dcs.toString(16)).slice(-2);
-      Buf.writeUint16(dcs.charCodeAt(0));
-      Buf.writeUint16(dcs.charCodeAt(1));
+      this.writeHexCode(dcs);
     }
 
     // - Validity Period -
@@ -2070,8 +2051,7 @@ let GsmPDUHelper = {
         if (DEBUG) debug("PDU warning: message is empty");
       }
       let messageLength = ("00" + message.length.toString(16)).slice(-2);
-      Buf.writeUint16(messageLength.charCodeAt(0));
-      Buf.writeUint16(messageLength.charCodeAt(1));
+      this.writeHexCode(messageLength);
     }
 
     // - User Data -
@@ -2085,8 +2065,7 @@ let GsmPDUHelper = {
           if (i == message.length) {
             if (octetnd.length) {
               let hex = ("00" + parseInt(octetnd, 2).toString(16)).slice(-2);
-              Buf.writeUint16(hex.charCodeAt(0));
-              Buf.writeUint16(hex.charCodeAt(0));
+              this.writeHexCode(hex);
             }
             break;
           }
@@ -2095,8 +2074,7 @@ let GsmPDUHelper = {
           if (i != 0 && i % 8 != 0) {
             octetst = octet.substring(7 - (i) % 8);
             let hex = ("00" + parseInt((octetst + octetnd), 2).toString(16)).slice(-2);
-            Buf.writeUint16(hex.charCodeAt(0));
-            Buf.writeUint16(hex.charCodeAt(1));
+            this.writeHexCode(hex);
           }
           octetnd = octet.substring(0, 7 - (i) % 8);
         }
