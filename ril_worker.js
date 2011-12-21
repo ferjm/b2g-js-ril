@@ -1934,7 +1934,7 @@ let GsmPDUHelper = {
     }
     // Convert into string
     let address = this.stringToBCDString(address);
-    addressLength = ("00" + addressLength.toString(16)).slice(-2).toUpperCase();
+    addressLength = ("00" + addressLength.toString(16)).slice(-2);
     return addressLength + "" + addressFormat.toString(16) + "" + address;
   },
 
