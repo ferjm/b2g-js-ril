@@ -1956,7 +1956,7 @@ let GsmPDUHelper = {
   /**
    *   Serialize a SMS-SUBMIT PDU message and write it to the output stream.
    *
-   *   @param destinationAddress
+   *   @param address
    *          String containing the address (number) of the SMS receiver
    *   @param message
    *          String containing the message to be sent as user data
@@ -1977,7 +1977,7 @@ let GsmPDUHelper = {
    *   UDL - User Data Length - 1 octet
    *   UD - User Data - 140 octets
    */
-  writeMessage: function writeMessage(destinationAddress,
+  writeMessage: function writeMessage(address,
                                       message,
                                       encoding,
                                       validity,
@@ -1987,7 +1987,6 @@ let GsmPDUHelper = {
       if (DEBUG) debug("PDU warning: message is empty");
       return;
     }
-
 
     // Start the string to write to the circular buffer
     Buf.startString();
@@ -2035,24 +2034,24 @@ let GsmPDUHelper = {
     // - Destination Address -
     // International format
     let addressFormat;
-    if (destinationAddress[0] == '+') {
+    if (address[0] == '+') {
       addressFormat = PDU_TOA_INTERNATIONAL | PDU_TOA_ISDN; // 91
-      destinationAddress = destinationAddress.substring(1);
+      address = address.substring(1);
     } else {
       addressFormat = PDU_TOA_ISDN; // 81
     }
     // Add a trailing 'F'
-    let addressLength = destinationAddress.length;
+    let addressLength = address.length;
     this.writeHexOctet(addressLength);
     this.writeHexOctet(addressFormat);
 
     //TODO use writeSwappedNibbleBCD here
     if (addressLength % 2 != 0) {
-      destinationAddress += 'F';
+      address += 'F';
     }
-    for (let i = 0; i < destinationAddress.length; i += 2) {
-      Buf.writeUint16(destinationAddress.charCodeAt(i + 1));
-      Buf.writeUint16(destinationAddress.charCodeAt(i));
+    for (let i = 0; i < address.length; i += 2) {
+      Buf.writeUint16(address.charCodeAt(i + 1));
+      Buf.writeUint16(address.charCodeAt(i));
     }
 
     // - Protocol Identifier -
