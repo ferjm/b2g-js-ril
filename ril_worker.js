@@ -1928,7 +1928,6 @@ let GsmPDUHelper = {
   *          TBD
   *   @param udhi
   *          User Data Header information
-  *   @return and object with the SMSC address and the message PDU
   *
   *   SMS-SUBMIT Format
   *   -----------------

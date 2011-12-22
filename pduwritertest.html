@@ -67,9 +67,6 @@
       for (let i = 0; i < string_len; i++) {
         s += String.fromCharCode(readUint16());
       }
-      // Strings are \0\0 delimited, but that isn't part of the length. And
-      // if the string length is even, the delimiter is two characters wide.
-      // It's insane, I know.
       let delimiter = readUint16();
       if (!(string_len & 1)) {
         delimiter |= readUint16();
@@ -118,7 +115,7 @@
     
     function loopSerialize() {
       let start = Date.now();
-      for (let i = 0; i < 1000; i++) {
+      for (let i = 0; i < 10000; i++) {
         serialize();
       }
       printResult("Serialize took " + (Date.now() - start));
@@ -126,7 +123,7 @@
 
     function loopSerializeToBuf() {
       let start = Date.now();
-      for (let i = 0; i < 1000; i++) {
+      for (let i = 0; i < 10000; i++) {
         serializeToBuf();
       }
       printResult("Serialize to Buf took " + (Date.now() - start));
