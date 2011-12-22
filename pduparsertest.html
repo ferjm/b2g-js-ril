@@ -9,20 +9,7 @@
     <button id="testButton" onclick="runBlackBoxTests(); return false;">Run tests</button>
     <button id="testButton" onclick="loopTests(); return false;">Run 100 tests</button>
   </div>
-  <div>
-    <p>
-      <label for="receiverId">Receiver</label>
-      <input id="receiverId" type="text" value="+34666000888">
-    </p>
-    <p>
-      <label for="msg">Message</label>
-      <input id="msg" type="text" value="Hi there...">
-    </p>
-    <button id="testSerializerButton" onclick="serialize(); return false">Serialize</button>
-  </div>
   <div id="result">
-  </div>
-  <div id="serializerResult">
   </div>
   <div id="tests">
   </div>
@@ -34,58 +21,12 @@ function importScripts() {}
   <script type="application/javascript;version=1.8" src="pdu.js"></script>
   <script type="application/javascript;version=1.8">
 
-// Overwrite 'Buf' object from ril_worker.js with this test dummy.
-let Buf = {
-  pdu: null,
-  current: null,
-  init: function init(pdu) {
-    this.pdu = pdu;
-    this.buffer = [chr.charCodeAt() for each (chr in pdu)];
-    this.current = 0;
- },
-  readUint16: function readUint16() {
-    if (this.current >= this.buffer.length) {
-      if (DEBUG) debug("Ran out of data.");
-      throw "End of buffer!";
-    }
-    return this.buffer[this.current++];
-  },
-  readString: function readString() {
-    if (this.current >= this.pdu.length) {
-      if (DEBUG) debug("Ran out of data.");
-      throw "End of buffer!";
-    }
-    return this.pdu[this.current++];
-  }
-};
 
-  function debug(msg) {
-    console.log(msg);
-  }
-
-    function parse() {
-      Buf.init(document.getElementById("pdu").value);
-      let parsedPDU = GsmPDUHelper.readMessage();
-      if(typeof(parsedPDU) != "undefined") {
-        var resultDiv = document.getElementById("result");
-        var resultList = document.createElement("ul");
-        var smsc = document.createElement("li");
-        smsc.innerHTML = "SMSC: " + parsedPDU.SMSC;
-        var sender = document.createElement("li");
-        sender.innerHTML = "Sender: " + parsedPDU.sender;
-        var message = document.createElement("li");
-        message.innerHTML = "Message: " + parsedPDU.body;
-        var tsv = document.createElement("li");
-        if(typeof(parsedPDU.timestamp) != "undefined") {
-          tsv.innerHTML = "Timestamp: " + parsedPDU.timestamp;
-        }
-        resultList.appendChild(sender);
-        resultList.appendChild(smsc);
-        resultList.appendChild(message);
-        resultList.appendChild(tsv);
-        resultDiv.appendChild(resultList);
-      }
+    function debug(msg) {
+      console.log(msg);
     }
+
+
     function AssertException(message) { this.message = message; }
     AssertException.prototype.toString = function () {
       return 'AssertException: ' + this.message;
@@ -127,10 +68,61 @@ let Buf = {
       test.appendChild(ok);
     }
 
+    
+    // Overwrite 'Buf' object from ril_worker.js with this test dummy.
+    let Buf = {
+      pdu: null,
+      current: null,
+      init: function init(pdu) {
+        this.pdu = pdu;
+        this.buffer = [chr.charCodeAt() for each (chr in pdu)];
+        this.current = 0;
+      },
+      readUint16: function readUint16() {
+        if (this.current >= this.buffer.length) {
+          if (DEBUG) debug("Ran out of data.");
+          throw "End of buffer!";
+        }
+        return this.buffer[this.current++];
+      },
+      readString: function readString() {
+        if (this.current >= this.pdu.length) {
+          if (DEBUG) debug("Ran out of data.");
+          throw "End of buffer!";
+        }
+        return this.pdu[this.current++];
+      }
+    };
+
+    function parse() {
+      Buf.init(document.getElementById("pdu").value);
+      let parsedPDU = GsmPDUHelper.readMessage();
+      if(typeof(parsedPDU) != "undefined") {
+        var resultDiv = document.getElementById("result");
+        var resultList = document.createElement("ul");
+        var smsc = document.createElement("li");
+        smsc.innerHTML = "SMSC: " + parsedPDU.SMSC;
+        var sender = document.createElement("li");
+        sender.innerHTML = "Sender: " + parsedPDU.sender;
+        var message = document.createElement("li");
+        message.innerHTML = "Message: " + parsedPDU.body;
+        var tsv = document.createElement("li");
+        if(typeof(parsedPDU.timestamp) != "undefined") {
+          tsv.innerHTML = "Timestamp: " + parsedPDU.timestamp;
+        }
+        resultList.appendChild(sender);
+        resultList.appendChild(smsc);
+        resultList.appendChild(message);
+        resultList.appendChild(tsv);
+        resultDiv.appendChild(resultList);
+      }
+    }
+
     function parsePDU(pdu) {
       Buf.init(pdu);
       return GsmPDUHelper.readMessage();
     }
+    
 
     function runBlackBoxTests() {
       {
@@ -382,22 +374,7 @@ let Buf = {
         runBlackBoxTests();
       }
       console.log("Tests took " + (Date.now() - start));
-    }
-
-    function serialize() {
-      let destinationAddress = document.getElementById("receiverId").value;
-      let message = document.getElementById("msg").value;
-      let serialized = PDU.writeMessage(destinationAddress,
-                                        message,
-                                        7);
-      let resultDiv = document.getElementById("serializerResult");
-      let resultp = document.createElement("p");
-      resultDiv.appendChild(resultp);
-      let result = document.createElement("h5");
-      let resultStr = document.createTextNode(" PDU: " + serialized);
-      result.appendChild(resultStr);
-      resultp.appendChild(result);
-    }
+    }    
   </script>
 </body>
 </html>

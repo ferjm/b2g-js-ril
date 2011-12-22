@@ -1,0 +1,136 @@
+</body>
+</html>
+<head>
+</head>
+<body>
+  <div>
+    <p>
+      <label for="receiverId">Receiver</label>
+      <input id="receiverId" type="text" value="+34666000888">
+    </p>
+    <p>
+      <label for="msg">Message</label>
+      <input id="msg" type="text" value="Hi there...">
+    </p>
+     <button id="testSerializerButton" onclick="serialize(true); return false">Serialize</button>
+     <button id="testSerializerBuffButton" onclick="serializeToBuf(true); return false">Serialize writing to Buf</button>
+     <button id="testSerializerButton" onclick="loopSerialize(); return false">Benchmark serialize</button>
+     <button id="testSerializerBuffButton" onclick="loopSerializeToBuf(); return false">Benchmark serialize writing to Buf</button>
+ </div>
+  <div id="result">
+  </div>
+  <script type="application/javascript;version=1.8">
+    function importScripts() {}
+  </script>
+  <script type="application/javascript;version=1.8" src="ril_consts.js"></script>
+  <script type="application/javascript;version=1.8" src="ril_worker.js"></script>
+  <script type="application/javascript;version=1.8" src="pdu.js"></script>
+  <script type="application/javascript;version=1.8">
+    function debug(msg) {
+      console.log(msg);
+    }
+
+
+    function AssertException(message) { this.message = message; }
+    AssertException.prototype.toString = function () {
+      return 'AssertException: ' + this.message;
+    }
+
+    function assert(exp, message) {
+      if (!exp) {
+        throw new AssertException(message);
+      }
+    }
+
+    function readUint8() {
+      let value = Buf.outgoingBytes[Buf.outgoingIndex];
+      Buf.outgoingIndex = (Buf.outgoingIndex + 1) %
+                            Buf.OUTGOING_BUFFER_LENGTH;
+      return value;
+    }
+
+    function readUint16() {
+      return readUint8() | readUint8();
+    }
+
+    function readUint32() {
+      return readUint8() | readUint8() |
+             readUint8() | readUint8();
+    }
+
+    function readString() {
+      let string_len = readUint32();
+      if (string_len < 0 || string_len >= INT32_MAX) {
+        return null;
+      }
+      let s = "";
+      for (let i = 0; i < string_len; i++) {
+        s += String.fromCharCode(readUint16());
+      }
+      // Strings are \0\0 delimited, but that isn't part of the length. And
+      // if the string length is even, the delimiter is two characters wide.
+      // It's insane, I know.
+      let delimiter = readUint16();
+      if (!(string_len & 1)) {
+        delimiter |= readUint16();
+      }
+      if (DEBUG) {
+        if (delimiter != 0) {
+          debug("Something's wrong, found string delimiter: " + delimiter);
+        }
+      }
+      return s;
+    }
+
+    function printResult(msg) {
+      let resultDiv = document.getElementById("result");
+      let resultp = document.createElement("p");
+      resultDiv.appendChild(resultp);
+      let result = document.createElement("h5");
+      let resultStr = document.createTextNode(msg);
+      result.appendChild(resultStr);
+      resultp.appendChild(result);
+    }
+
+    function serialize(print) {
+      let destinationAddress = document.getElementById("receiverId").value;
+      let message = document.getElementById("msg").value;
+      let msg = PDU.writeMessage(destinationAddress,
+                                        message,
+                                        7);
+      if (print) {
+        printResult("PDU: " + msg);
+      }
+    }
+
+    function serializeToBuf(print) {
+      let destinationAddress = document.getElementById("receiverId").value;
+      let message = document.getElementById("msg").value;
+      GsmPDUHelper.writeMessage(destinationAddress,
+                                message,
+                                7);
+      if (print) {
+        Buf.outgoingIndex = Buf.newStringIndex + STRING_SIZE_SIZE;
+        let msg = readString();
+        printResult("PDU: " + msg);
+      }
+    }
+    
+    function loopSerialize() {
+      let start = Date.now();
+      for (let i = 0; i < 1000; i++) {
+        serialize();
+      }
+      printResult("Serialize took " + (Date.now() - start));
+    } 
+
+    function loopSerializeToBuf() {
+      let start = Date.now();
+      for (let i = 0; i < 1000; i++) {
+        serializeToBuf();
+      }
+      printResult("Serialize to Buf took " + (Date.now() - start));
+    }
+  </script>
+</body>
+</html>
