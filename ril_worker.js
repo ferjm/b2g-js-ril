@@ -1568,6 +1568,13 @@ let Phone = {
       // TODO: should we wait for it and retry? Should we return?
       return;
     }
+    if (!options.number) {
+      if (DEBUG) {
+        debug("Cannot send an SMS without a destination number");
+        // TODO: how to return error?
+        return;
+      }
+    }
     RIL.sendSMS(this.SMSC, options.number, options.message);
   },
 
@@ -1993,10 +2000,6 @@ let GsmPDUHelper = {
     Buf.writeUint16(48);
 
     // - Destination Address -
-    if (destinationAddress == undefined) {
-      if (DEBUG) debug("PDU error: no destination address provided");
-      return null;
-    }
     // International format
     let addressFormat;
     if (destinationAddress[0] == '+') {

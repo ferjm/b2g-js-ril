@@ -16,8 +16,11 @@
      <button id="testSerializerBuffButton" onclick="serializeToBuf(true); return false">Serialize writing to Buf</button>
      <button id="testSerializerButton" onclick="loopSerialize(); return false">Benchmark serialize</button>
      <button id="testSerializerBuffButton" onclick="loopSerializeToBuf(); return false">Benchmark serialize writing to Buf</button>
- </div>
+     <button id="testsButton" onclick="runTests(); return false">Run tests</button>
+  </div>
   <div id="result">
+  </div>
+  <div id="tests">
   </div>
   <script type="application/javascript;version=1.8">
     function importScripts() {}
@@ -112,14 +115,14 @@
         printResult("PDU: " + msg);
       }
     }
-    
+
     function loopSerialize() {
       let start = Date.now();
       for (let i = 0; i < 10000; i++) {
         serialize();
       }
       printResult("Serialize took " + (Date.now() - start));
-    } 
+    }
 
     function loopSerializeToBuf() {
       let start = Date.now();
@@ -127,6 +130,59 @@
         serializeToBuf();
       }
       printResult("Serialize to Buf took " + (Date.now() - start));
+    }
+
+    function printTest(testId) {
+      let testsDiv = document.getElementById("tests");
+      let testp = document.createElement("p");
+      testp.setAttribute("id",testId);
+      testsDiv.appendChild(testp);
+      let test = document.createElement("h2");
+      let testStr = document.createTextNode(testId);
+      test.appendChild(testStr);
+      testp.appendChild(test);
+    }
+
+    function printTestError(testId, errorMsg) {
+      let test = document.getElementById(testId);
+      let error = document.createElement("h4");
+      let errorStr = document.createTextNode(errorMsg);
+      error.style.color = "red";
+      error.appendChild(errorStr);
+      test.appendChild(error);
+    }
+
+    function printTestOk(testId) {
+      let test = document.getElementById(testId);
+      let ok = document.createElement("h4");
+      ok.style.color = "green";
+      let okStr = document.createTextNode("OK");
+      ok.appendChild(okStr);
+      test.appendChild(ok);
+    }
+
+
+    function test(testId, address, message, pdu) {
+      printTest(testId);
+      Buf.init();
+      GsmPDUHelper.writeMessage(address,
+                                message,
+                                7);
+      Buf.outgoingIndex = Buf.newStringIndex + STRING_SIZE_SIZE;
+      let msg = readString();
+      msg = msg.toUpperCase();
+      try {
+        assert(msg != null, "msg = null");
+        assert(msg == pdu, "Wrong pdu: " + msg);
+        printTestOk(testId);
+      } catch(err) {
+        printTestError(testId, err.message);
+      }
+    }
+    function runTests() {
+      test("TEST 1", "+34666200200", "Hello World", "01000B914366260002F000000BC8329BFD065DDF723619");
+      test("TEST 2", "+34666200200", "", "01000B914366260002F0000000");
+      test("TEST 3", "34666333888", "Hello World", "01000B914366363388F800000BC8329BFD065DDF723619");
     }
   </script>
 </body>
