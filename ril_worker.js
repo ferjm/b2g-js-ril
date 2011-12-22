@@ -1994,34 +1994,32 @@ let GsmPDUHelper = {
   },
 
   /**
-   *   Serialize a SMS-SUBMIT PDU message and write it to the output stream.
+   * Serialize a SMS-SUBMIT PDU message and write it to the output stream.
    *
-   *   @param address
-   *          String containing the address (number) of the SMS receiver
-   *   @param message
-   *          String containing the message to be sent as user data
-   *   @param validity
-   *          TBD
-   *   @param udhi
-   *           User Data Header information
-   *
-   *   SMS-SUBMIT Format
-   *   -----------------
-   *
-   *   SMSCA - Service Center Address - 1 to 10 octets
-   *   PDU Type & Message Reference - 1 octet
-   *   DA - Destination Address - 2 to 12 octets
-   *   PID - Protocol Identifier - 1 octet
-   *   DCS - Data Coding Scheme - 1 octet
-   *   VP - Validity Period - 0, 1 or 7 octets
-   *   UDL - User Data Length - 1 octet
-   *   UD - User Data - 140 octets
+   * @param address
+   *        String containing the address (number) of the SMS receiver
+   * @param message
+   *        String containing the message to be sent as user data
+   * @param validity
+   *        TBD
+   * @param udhi
+   *         User Data Header information
    */
   writeMessage: function writeMessage(address,
                                       message,
                                       encoding,
                                       validity,
                                       udhi) {
+    // SMS-SUBMIT Format:
+    //
+    // PDU Type & Message Reference - 1 octet
+    // DA - Destination Address - 2 to 12 octets
+    // PID - Protocol Identifier - 1 octet
+    // DCS - Data Coding Scheme - 1 octet
+    // VP - Validity Period - 0, 1 or 7 octets
+    // UDL - User Data Length - 1 octet
+    // UD - User Data - 140 octets
+
     // Phones allow empty sms
     if (message == null) {
       if (DEBUG) debug("PDU warning: message is empty");
