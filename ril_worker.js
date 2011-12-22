@@ -2039,7 +2039,7 @@ let GsmPDUHelper = {
     // RP:    0   Reply path parameter is not set
     //        1   Reply path parameter is set
     // UDHI:  0   The UD Field contains only the short message
-    //        1   The beginning of the UD field contains a header in adittion
+    //        1   The beginning of the UD field contains a header in addition
     //            of the short message
     // SRR:   0   A status report is not requested
     //        1   A status report is requested
