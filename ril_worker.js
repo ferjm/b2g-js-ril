@@ -1609,7 +1609,7 @@ let Phone = {
  *
  * A PDU is a string containing a series of hexadecimally encoded octets
  * or nibble-swapped binary-coded decimals (BCDs). It contains not only the
- * message text but information abou the sender, the SMS service center,
+ * message text but information about the sender, the SMS service center,
  * timestamp, etc.
  */
 let GsmPDUHelper = {
