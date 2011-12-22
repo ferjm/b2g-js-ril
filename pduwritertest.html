@@ -162,17 +162,17 @@
     }
 
 
-    function test(testId, address, message, pdu) {
+    function test(testId, address, message, validity, pdu) {
       printTest(testId);
       Buf.init();
-      GsmPDUHelper.writeMessage(address,
-                                message,
-                                7);
+      GsmPDUHelper.writeMessage(address, message, 7, validity);
       Buf.outgoingIndex = Buf.newStringIndex + STRING_SIZE_SIZE;
       let msg = readString();
       msg = msg.toUpperCase();
       try {
         assert(msg != null, "msg = null");
+        console.log(msg);
+        console.log(pdu);
         assert(msg == pdu, "Wrong pdu: " + msg);
         printTestOk(testId);
       } catch(err) {
@@ -180,9 +180,14 @@
       }
     }
     function runTests() {
-      test("TEST 1", "+34666200200", "Hello World", "01000B914366260002F000000BC8329BFD065DDF723619");
-      test("TEST 2", "+34666200200", "", "01000B914366260002F0000000");
-      test("TEST 3", "34666333888", "Hello World", "01000B914366363388F800000BC8329BFD065DDF723619");
+      test("TEST 0", "+46708251358", "hellohello", 0xaa,
+                     "11000B916407281553F80000AA0AE8329BFD4697D9EC37");
+      test("TEST 1", "+34666200200", "Hello World", 0,
+                     "01000B914366260002F000000BC8329BFD065DDF723619");
+      test("TEST 2", "+34666200200", "", 0,
+                     "01000B914366260002F0000000");
+      test("TEST 3", "34666333888", "Hello World", 0,
+                     "01000B914366363388F800000BC8329BFD065DDF723619");
     }
   </script>
 </body>

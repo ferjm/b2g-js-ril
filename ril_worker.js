@@ -1982,18 +1982,17 @@ let GsmPDUHelper = {
     //        0     1       SMS-SUBMIT (MS ==> SMSC)
 
     // PDU type. MTI is set to SMS-SUBMIT
-    {
-      let firstOctet = 1;
-      // Validity period
-      if (validity) {
-        firstOctet |= 0x10;
-      }
-      if (udhi) {
-        firstOctet |= 0x40;
-      }
-      firstOctet = ("00" + firstOctet).slice(-2);
-      this.writeHexCode(firstOctet);
+    let firstOctet = 1;
+
+    // Validity period
+    if (validity) {
+      firstOctet |= 0x10;
     }
+    if (udhi) {
+      firstOctet |= 0x40;
+    }
+    firstOctet = ("00" + firstOctet.toString(16)).slice(-2);
+    this.writeHexCode(firstOctet);
 
     // Message reference 00
     Buf.writeUint16(48);
@@ -2025,7 +2024,7 @@ let GsmPDUHelper = {
 
     // - Protocol Identifier -
     Buf.writeUint16(48);
-    Buf.writeUint16(48)
+    Buf.writeUint16(48);
 
     // - Data coding scheme -
     // For now it assumes bits 7..4 = 1111 except for the 16 bits use case
@@ -2044,17 +2043,20 @@ let GsmPDUHelper = {
     }
 
     // - Validity Period -
-    // TODO: Encode Validity Period. Not supported for the moment
+    if (validity) {
+      validity = ("00" + validity.toString(16)).slice(-2);
+      this.writeHexCode(validity);
+    }
 
     // - User Data Length -
     // Phones allow empty sms
-    {
-      if (message == undefined) {
-        if (DEBUG) debug("PDU warning: message is empty");
-      }
-      let messageLength = ("00" + message.length.toString(16)).slice(-2);
-      this.writeHexCode(messageLength);
+    if (message == null) {
+      if (DEBUG) debug("PDU warning: message is empty");
+      return null;
     }
+    //TODO XXX this is wrong, needs to be length in septets if encoding == 7
+    let messageLength = ("00" + message.length.toString(16)).slice(-2);
+    this.writeHexCode(messageLength);
 
     // - User Data -
     let pdu = "";
