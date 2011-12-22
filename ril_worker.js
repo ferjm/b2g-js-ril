@@ -1756,8 +1756,8 @@ let GsmPDUHelper = {
     for (let i = 0; i <= message.length; i++) {
       if (i == message.length) {
         if (octetnd.length) {
-          let hex = ("00" + parseInt(octetnd, 2).toString(16)).slice(-2);
-          this.writeHexCode(hex);
+          let hex = parseInt(octetnd, 2);
+          this.writeHexOctet(hex);
         }
         break;
       }
@@ -1765,8 +1765,8 @@ let GsmPDUHelper = {
       octet = ("00000000" + charcode).slice(-7);
       if (i != 0 && i % 8 != 0) {
         octetst = octet.substring(7 - (i) % 8);
-        let hex = ("00" + parseInt((octetst + octetnd), 2).toString(16)).slice(-2);
-        this.writeHexCode(hex);
+        let hex = parseInt((octetst + octetnd), 2);
+        this.writeHexOctet(hex);
       }
       octetnd = octet.substring(0, 7 - (i) % 8);
     }
@@ -1975,12 +1975,6 @@ let GsmPDUHelper = {
     }
     if (DEBUG) debug("PDU warning: No character found in default 7 bit alphabet for " + c);
     return null;
-  },
-
-  //DELETEME
-  writeHexCode: function writeHexCode(code) {
-    Buf.writeUint16(code.charCodeAt(0));
-    Buf.writeUint16(code.charCodeAt(1));
   },
 
   /**
