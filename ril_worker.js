@@ -71,7 +71,6 @@ const UINT8_SIZE  = 1;
 const UINT16_SIZE = 2;
 const UINT32_SIZE = 4;
 const PARCEL_SIZE_SIZE = UINT32_SIZE;
-const STRING_SIZE_SIZE = UINT32_SIZE;
 
 /**
  * This object contains helpers buffering incoming data & deconstructing it
