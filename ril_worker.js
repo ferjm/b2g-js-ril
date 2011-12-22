@@ -1635,12 +1635,39 @@ let GsmPDUHelper = {
   },
 
   /**
+   * Encode a nibble as one hex character in a RIL string (2 bytes).
+   *
+   * @param nibble
+   *        The nibble to encode (represented as a number)
+   */
+  writeHexNibble: function writeHexNibble(nibble) {
+    nibble &= 0x0f;
+    if (nibble < 10) {
+      nibble += 48;
+    } else {
+      nibble += 55;
+    }
+    Buf.writeUint16(nibble);
+  },
+
+  /**
    * Read a hex-encoded octet (two nibbles).
    *
    * @return the octet as a number.
    */
   readHexOctet: function readHexOctet() {
     return (this.readHexNibble() << 4) | this.readHexNibble();
+  },
+
+  /**
+   * Write an octet as two hex-encoded nibbles.
+   *
+   * @param octet
+   *        The octet (represented as a number) to encode.
+   */
+  writeHexOctet: function writeHexOctet(octet) {
+    this.writeHexNibble(octet >> 4);
+    this.writeHexNibble(octet);
   },
 
   /**
@@ -1909,6 +1936,7 @@ let GsmPDUHelper = {
     return msg;
   },
 
+  //DELETEME
   charTo7BitCode: function charTo7BitCode(c) {
     for (let i = 0; i < alphabet_7bit.length; i++) {
       if (alphabet_7bit[i] == c) {
@@ -1919,6 +1947,7 @@ let GsmPDUHelper = {
     return null;
   },
 
+  //DELETEME
   writeHexCode: function writeHexCode(code) {
     Buf.writeUint16(code.charCodeAt(0));
     Buf.writeUint16(code.charCodeAt(1));
@@ -1953,6 +1982,13 @@ let GsmPDUHelper = {
                                       encoding,
                                       validity,
                                       udhi) {
+    // Phones allow empty sms
+    if (message == null) {
+      if (DEBUG) debug("PDU warning: message is empty");
+      return;
+    }
+
+
     // Start the string to write to the circular buffer
     Buf.startString();
 
@@ -1982,7 +2018,7 @@ let GsmPDUHelper = {
     //        0     1       SMS-SUBMIT (MS ==> SMSC)
 
     // PDU type. MTI is set to SMS-SUBMIT
-    let firstOctet = 1;
+    let firstOctet = 0x01;
 
     // Validity period
     if (validity) {
@@ -1991,12 +2027,10 @@ let GsmPDUHelper = {
     if (udhi) {
       firstOctet |= 0x40;
     }
-    firstOctet = ("00" + firstOctet.toString(16)).slice(-2);
-    this.writeHexCode(firstOctet);
+    this.writeHexOctet(firstOctet);
 
     // Message reference 00
-    Buf.writeUint16(48);
-    Buf.writeUint16(48);
+    this.writeHexOctet(0x00);
 
     // - Destination Address -
     // International format
@@ -2009,22 +2043,20 @@ let GsmPDUHelper = {
     }
     // Add a trailing 'F'
     let addressLength = destinationAddress.length;
+    this.writeHexOctet(addressLength);
+    this.writeHexOctet(addressFormat);
+
+    //TODO use writeSwappedNibbleBCD here
     if (addressLength % 2 != 0) {
       destinationAddress += 'F';
     }
-    addressLength = ("00" + addressLength.toString(16)).slice(-2);
-    this.writeHexCode(addressLength);
-    addressFormat = ("00" + addressFormat.toString(16)).slice(-2);
-    this.writeHexCode(addressFormat);
-    // Convert into string
     for (let i = 0; i < destinationAddress.length; i += 2) {
       Buf.writeUint16(destinationAddress.charCodeAt(i + 1));
       Buf.writeUint16(destinationAddress.charCodeAt(i));
     }
 
     // - Protocol Identifier -
-    Buf.writeUint16(48);
-    Buf.writeUint16(48);
+    this.writeHexOctet(0x00);
 
     // - Data coding scheme -
     // For now it assumes bits 7..4 = 1111 except for the 16 bits use case
@@ -2038,25 +2070,18 @@ let GsmPDUHelper = {
           dcs |= PDU_DCS_MSG_CODING_16BITS_ALPHABET;
           break;
       }
-      dcs = ("00" + dcs.toString(16)).slice(-2);
-      this.writeHexCode(dcs);
+      this.writeHexOctet(dcs);
     }
 
     // - Validity Period -
     if (validity) {
-      validity = ("00" + validity.toString(16)).slice(-2);
-      this.writeHexCode(validity);
+      this.writeHexOctet(validity);
     }
 
     // - User Data Length -
-    // Phones allow empty sms
-    if (message == null) {
-      if (DEBUG) debug("PDU warning: message is empty");
-      return null;
-    }
     //TODO XXX this is wrong, needs to be length in septets if encoding == 7
-    let messageLength = ("00" + message.length.toString(16)).slice(-2);
-    this.writeHexCode(messageLength);
+    let messageLength = message.length;
+    this.writeHexOctet(messageLength);
 
     // - User Data -
     let pdu = "";
