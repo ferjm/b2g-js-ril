@@ -1711,6 +1711,23 @@ let GsmPDUHelper = {
   },
 
   /**
+   * Write numerical data as swapped nibble BCD.
+   * 
+   * @param data
+   *        Data to write (as a string or a number)
+   */
+  writeSwappedNibbleBCD: function writeSwappedNibbleBCD(data) {
+    data = data.toString();
+    if (data.length % 2) {
+      data += "F";
+    }
+    for (let i = 0; i < data.length; i += 2) {
+      Buf.writeUint16(data.charCodeAt(i + 1));
+      Buf.writeUint16(data.charCodeAt(i));
+    }
+  },
+
+  /**
    * Read user data, convert to septets, look up relevant characters in a
    * 7-bit alphabet, and construct string.
    *
@@ -1793,6 +1810,9 @@ let GsmPDUHelper = {
 
   /**
    * Write user data as a UCS2 string.
+   *
+   * @param message
+   *        Message string to encode as UCS2 in hex-encoded octets.
    */
   writeUCS2String: function writeUCS2String(message) {
     //TODO bug 712804
@@ -2060,19 +2080,9 @@ let GsmPDUHelper = {
     } else {
       addressFormat = PDU_TOA_ISDN; // 81
     }
-    // Add a trailing 'F'
-    let addressLength = address.length;
-    this.writeHexOctet(addressLength);
+    this.writeHexOctet(address.length);
     this.writeHexOctet(addressFormat);
-
-    //TODO use writeSwappedNibbleBCD here
-    if (addressLength % 2 != 0) {
-      address += 'F';
-    }
-    for (let i = 0; i < address.length; i += 2) {
-      Buf.writeUint16(address.charCodeAt(i + 1));
-      Buf.writeUint16(address.charCodeAt(i));
-    }
+    this.writeSwappedNibbleBCD(address);
 
     // - Protocol Identifier -
     this.writeHexOctet(0x00);
@@ -2102,7 +2112,7 @@ let GsmPDUHelper = {
 
     // - User Data -
     let pdu = "";
-    switch(encoding) {
+    switch (encoding) {
       case 7:
         this.writeStringAsSeptets(message);
         break;
