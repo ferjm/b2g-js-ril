@@ -409,7 +409,7 @@ let Buf = {
       try {
         this.processParcel();
       } catch (ex) {
-        if (DEBUG) debug("Parcel handling threw " + ex);
+        if (DEBUG) debug("Parcel handling threw " + ex + "\n" + ex.stack);
       }
 
       // Ensure that the whole parcel was consumed.
@@ -1354,9 +1354,9 @@ let Phone = {
     debug(message);
 
     // Read string delimiters. See Buf.readString().
-    let delimiter = this.readUint16();
+    let delimiter = Buf.readUint16();
     if (!(messageStringLength & 1)) {
-      delimiter |= this.readUint16();
+      delimiter |= Buf.readUint16();
     }
     if (DEBUG) {
       if (delimiter != 0) {
@@ -1585,7 +1585,7 @@ let GsmPDUHelper = {
    *
    * @return the decimal as a number.
    */
-  readBCD: function readBCD(length) {
+  readSwappedNibbleBCD: function readSwappedNibbleBCD(length) {
     let number = 0;
     for (let i = 0; i < length; i++) {
       let octet = this.readHexOctet();
@@ -1737,7 +1737,7 @@ let GsmPDUHelper = {
     if (smscLength > 0) {
       let smscTypeOfAddress = this.readHexOctet();
       // Subtract the type-of-address octet we just read from the length.
-      msg.SMSC = this.readBCD(smscLength - 1).toString();
+      msg.SMSC = this.readSwappedNibbleBCD(smscLength - 1).toString();
       if ((smscTypeOfAddress >> 4) == (PDU_TOA_INTERNATIONAL >> 4)) {
         msg.SMSC = '+' + msg.SMSC;
       }
@@ -1764,7 +1764,7 @@ let GsmPDUHelper = {
       senderAddressLength += 1;
     }
     if (DEBUG) debug("PDU: Going to read sender address: " + senderAddressLength);
-    msg.sender = this.readBCD(senderAddressLength / 2).toString();
+    msg.sender = this.readSwappedNibbleBCD(senderAddressLength / 2).toString();
     if (msg.sender.length <= 0) {
       if (DEBUG) debug("PDU error: no sender number provided");
       return null;
@@ -1798,12 +1798,12 @@ let GsmPDUHelper = {
       //TODO: check validity period
     } else {
       // - TP-Service-Center-Time-Stamp -
-      let year   = this.readBCD(1) + PDU_TIMESTAMP_YEAR_OFFSET;
-      let month  = this.readBCD(1) - 1;
-      let day    = this.readBCD(1) - 1;
-      let hour   = this.readBCD(1) - 1;
-      let minute = this.readBCD(1) - 1;
-      let second = this.readBCD(1) - 1;
+      let year   = this.readSwappedNibbleBCD(1) + PDU_TIMESTAMP_YEAR_OFFSET;
+      let month  = this.readSwappedNibbleBCD(1) - 1;
+      let day    = this.readSwappedNibbleBCD(1) - 1;
+      let hour   = this.readSwappedNibbleBCD(1) - 1;
+      let minute = this.readSwappedNibbleBCD(1) - 1;
+      let second = this.readSwappedNibbleBCD(1) - 1;
       msg.timestamp = Date.UTC(year, month, day, hour, minute, second);
 
       // If the most significant bit of the least significant nibble is 1,
