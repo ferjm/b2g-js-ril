@@ -71,6 +71,7 @@ const UINT8_SIZE  = 1;
 const UINT16_SIZE = 2;
 const UINT32_SIZE = 4;
 const PARCEL_SIZE_SIZE = UINT32_SIZE;
+const STRING_SIZE_SIZE = UINT32_SIZE;
 
 /**
  * This object contains helpers buffering incoming data & deconstructing it
@@ -102,6 +103,9 @@ let Buf = {
 
     // Leave room for the parcel size for outgoing parcels.
     this.outgoingIndex = PARCEL_SIZE_SIZE;
+
+    // Leave room for the string size for new strings.
+    this.newStringIndex = 0;
 
     // How many bytes we've read for this parcel so far.
     this.readIncoming = 0;
@@ -296,6 +300,33 @@ let Buf = {
     this.writeUint32(strings.length);
     for (let i = 0; i < strings.length; i++) {
       this.writeString(strings[i]);
+    }
+  },
+
+  startString: function startString() {
+    // String size will allways be the first byte of the string in its parcel
+    // representation, but it is the last thing to be written, so we need to
+    // store the current index off to a temporary to be reset after we write
+    // the string size.
+    this.newStringIndex = this.outgoingIndex;
+    // We also need to leave room for the string size.
+    this.outgoingIndex += STRING_SIZE_SIZE;
+  },
+
+  finishString: function finishString() {
+    // Compute the size of the string and write it to the front of the string
+    // where we left room for it.
+    let stringSize = (this.outgoingIndex - (this.newStringIndex + STRING_SIZE_SIZE)) / 2;
+    let currentIndex = this.outgoingIndex;
+    this.outgoingIndex = this.newStringIndex;
+    this.writeUint32(stringSize);
+    // Restart the indexes.
+    this.outgoingIndex = currentIndex;
+    this.newStringIndex = 0;
+    // Write the end of string as \0\0 in case of string length even or \0 odd.
+    this.writeUint16(0);
+    if(!(stringSize & 1)) {
+      this.writeUint16(0);
     }
   },
 
@@ -673,7 +704,7 @@ let RIL = {
    * @param pdu
    *        String containing the PDU in hex format.
    */
-  sendSMS: function sendSMS(smscPDU, pdu) {
+  sendSMS: function sendSMS(smscPDU, address, message) {
     let token = Buf.newParcel(REQUEST_SEND_SMS);
     //TODO we want to map token to the input values so that on the
     // response from the RIL device we know which SMS request was successful
@@ -681,7 +712,7 @@ let RIL = {
     // handle it within tokenRequestMap[].
     Buf.writeUint32(2);
     Buf.writeString(smscPDU);
-    Buf.writeString(pdu);
+    GsmPDUHelper.writeMessage(address, message, 7);
     Buf.sendParcel();
   },
 
@@ -896,8 +927,8 @@ RIL[REQUEST_DTMF] = function REQUEST_DTMF() {
 };
 RIL[REQUEST_SEND_SMS] = function REQUEST_SEND_SMS() {
   let messageRef = Buf.readUint32();
-  let ackPDU = p.readString();
-  let errorCode = p.readUint32();
+  let ackPDU = Buf.readString();
+  let errorCode = Buf.readUint32();
   Phone.onSendSMS(messageRef, ackPDU, errorCode);
 };
 RIL[REQUEST_SEND_SMS_EXPECT_MORE] = null;
@@ -1369,7 +1400,11 @@ let Phone = {
   },
 
   onSendSMS: function onSendSMS(messageRef, ackPDU, errorCode) {
-    //TODO
+    // Successfull completion of sendSMS.
+    this.sendDOMMessage({type: "sendsms",
+                        messageRef: messageRef,
+                        ackPDU: ackPDU,
+                        errorCode: errorCode});
   },
 
   onNewSMS: function onNewSMS(payloadLength) {
@@ -1524,10 +1559,16 @@ let Phone = {
    *        String containing the message text.
    */
   sendSMS: function sendSMS(options) {
-    //TODO munge options.number and options.message into PDU format
-    let smscPDU = "";
-    let pdu = "";
-    RIL.sendSMS(smscPDU, pdu);
+    // Get the SMS Center address
+    if (!this.SMSC) {
+      if (DEBUG) {
+        debug("Cannot send the SMS. Need to get the SMSC address first");
+      }
+      RIL.getSMSCAddress();
+      // TODO: should we wait for it and retry? Should we return?
+      return;
+    }
+    RIL.sendSMS(this.SMSC, options.number, options.message);
   },
 
   /**
@@ -1859,6 +1900,194 @@ let GsmPDUHelper = {
     }
 
     return msg;
+  },
+
+  charTo7BitCode: function charTo7BitCode(c) {
+    for (let i = 0; i < alphabet_7bit.length; i++) {
+      if (alphabet_7bit[i] == c) {
+        return i;
+      }
+    }
+    if (DEBUG) debug("PDU warning: No character found in default 7 bit alphabet for " + c);
+    return null;
+  },
+
+  writeHexCode: function writeHexCode(code) {
+    Buf.writeUint16(code.charCodeAt(0));
+    Buf.writeUint16(code.charCodeAt(1));
+  },
+
+  /**
+  *   Writes the serialized data of a SMS-SUBMIT directly to Buf
+  *
+  *   @param destinationAddress
+  *          String containing the address (number) of the SMS receiver
+  *   @param message
+  *          String containing the message to be sent as user data
+  *   @param validity
+  *          TBD
+  *   @param udhi
+  *          User Data Header information
+  *   @return and object with the SMSC address and the message PDU
+  *
+  *   SMS-SUBMIT Format
+  *   -----------------
+  *
+  *   SMSCA - Service Center Address - 1 to 10 octets
+  *   PDU Type & Message Reference - 1 octet
+  *   DA - Destination Address - 2 to 12 octets
+  *   PID - Protocol Identifier - 1 octet
+  *   DCS - Data Coding Scheme - 1 octet
+  *   VP - Validity Period - 0, 1 or 7 octets
+  *   UDL - User Data Length - 1 octet
+  *   UD - User Data - 140 octets
+  */
+  writeMessage: function writeMessage(destinationAddress,
+                                      message,
+                                      encoding,
+                                      validity,
+                                      udhi) {
+    // Start the string to write to the circular buffer
+    Buf.startString();
+
+    // - PDU-TYPE-
+
+    // +--------+----------+---------+---------+--------+---------+
+    // | RP (1) | UDHI (1) | SRR (1) | VPF (2) | RD (1) | MTI (2) |
+    // +--------+----------+---------+---------+--------+---------+
+    // RP:    0   Reply path parameter is not set
+    //        1   Reply path parameter is set
+    // UDHI:  0   The UD Field contains only the short message
+    //        1   The beginning of the UD field contains a header in adittion
+    //            of the short message
+    // SRR:   0   A status report is not requested
+    //        1   A status report is requested
+    // VPF:   bit4  bit3
+    //        0     0     VP field is not present
+    //        0     1     Reserved
+    //        1     0     VP field present an integer represented (relative)
+    //        1     1     VP field present a semi-octet represented (absolute)
+    // RD:        Instruct the SMSC to accept(0) or reject(1) an SMS-SUBMIT
+    //            for a short message still held in the SMSC which has the same
+    //            MR and DA as a previously submitted short message from the
+    //            same OA
+    // MTI:   bit1  bit0    Message Type
+    //        0     0       SMS-DELIVER (SMSC ==> MS)
+    //        0     1       SMS-SUBMIT (MS ==> SMSC)
+
+    // PDU type. MTI is set to SMS-SUBMIT
+    {
+      let firstOctet = 1;
+      // Validity period
+      if (validity) {
+        firstOctet |= 0x10;
+      }
+      if (udhi) {
+        firstOctet |= 0x40;
+      }
+      firstOctet = ("00" + firstOctet).slice(-2);
+      this.writeHexCode(firstOctet);
+    }
+
+    // Message reference 00
+    Buf.writeUint16(48);
+    Buf.writeUint16(48);
+
+    // - Destination Address -
+    if (destinationAddress == undefined) {
+      if (DEBUG) debug("PDU error: no destination address provided");
+      return null;
+    }
+    // International format
+    let addressFormat;
+    if (destinationAddress[0] == '+') {
+      addressFormat = PDU_TOA_INTERNATIONAL | PDU_TOA_ISDN; // 91
+      destinationAddress = destinationAddress.substring(1);
+    } else {
+      addressFormat = PDU_TOA_ISDN; // 81
+    }
+    // Add a trailing 'F'
+    let addressLength = destinationAddress.length;
+    if (addressLength % 2 != 0) {
+      destinationAddress += 'F';
+    }
+    addressLength = ("00" + addressLength.toString(16)).slice(-2);
+    this.writeHexCode(addressLength);
+    addressFormat = ("00" + addressFormat.toString(16)).slice(-2);
+    this.writeHexCode(addressFormat);
+    // Convert into string
+    for (let i = 0; i < destinationAddress.length; i += 2) {
+      Buf.writeUint16(destinationAddress.charCodeAt(i + 1));
+      Buf.writeUint16(destinationAddress.charCodeAt(i));
+    }
+
+    // - Protocol Identifier -
+    Buf.writeUint16(48);
+    Buf.writeUint16(48)
+
+    // - Data coding scheme -
+    // For now it assumes bits 7..4 = 1111 except for the 16 bits use case
+    {
+      let dcs = 0;
+      switch (encoding) {
+        case 8:
+          dcs |= PDU_DCS_MSG_CODING_8BITS_ALPHABET;
+          break;
+        case 16:
+          dcs |= PDU_DCS_MSG_CODING_16BITS_ALPHABET;
+          break;
+      }
+      dcs = ("00" + dcs.toString(16)).slice(-2);
+      this.writeHexCode(dcs);
+    }
+
+    // - Validity Period -
+    // TODO: Encode Validity Period. Not supported for the moment
+
+    // - User Data Length -
+    // Phones allow empty sms
+    {
+      if (message == undefined) {
+        if (DEBUG) debug("PDU warning: message is empty");
+      }
+      let messageLength = ("00" + message.length.toString(16)).slice(-2);
+      this.writeHexCode(messageLength);
+    }
+
+    // - User Data -
+    let pdu = "";
+    switch(encoding) {
+      case 7:
+        let octet = "";
+        let octetst = "";
+        let octetnd = "";
+        for (let i = 0; i <= message.length; i++) {
+          if (i == message.length) {
+            if (octetnd.length) {
+              let hex = ("00" + parseInt(octetnd, 2).toString(16)).slice(-2);
+              this.writeHexCode(hex);
+            }
+            break;
+          }
+          let charcode = this.charTo7BitCode(message.charAt(i)).toString(2);
+          octet = ("00000000" + charcode).slice(-7);
+          if (i != 0 && i % 8 != 0) {
+            octetst = octet.substring(7 - (i) % 8);
+            let hex = ("00" + parseInt((octetst + octetnd), 2).toString(16)).slice(-2);
+            this.writeHexCode(hex);
+          }
+          octetnd = octet.substring(0, 7 - (i) % 8);
+        }
+        break;
+      case 8:
+        //TODO:
+        break;
+      case 16:
+        //TODO:
+        break;
+    }
+    // Write end of string to Buf
+    Buf.finishString();
   }
 };
 
