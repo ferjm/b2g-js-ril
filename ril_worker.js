@@ -998,10 +998,10 @@ RIL[REQUEST_DEVICE_IDENTITY] = null;
 RIL[REQUEST_EXIT_EMERGENCY_CALLBACK_MODE] = null;
 RIL[REQUEST_GET_SMSC_ADDRESS] = function REQUEST_GET_SMSC_ADDRESS() {
   let smsc = Buf.readString();
-  Phone.onGetSMSC(smsc);
+  Phone.onGetSMSCAddress(smsc);
 };
 RIL[REQUEST_SET_SMSC_ADDRESS] = function REQUEST_SET_SMSC_ADDRESS() {
-  Phone.onSetSMSC();
+  Phone.onSetSMSCAddress();
 };
 RIL[REQUEST_REPORT_SMS_MEMORY_STATUS] = null;
 RIL[REQUEST_REPORT_STK_SERVICE_IS_RUNNING] = null;
@@ -1361,11 +1361,11 @@ let Phone = {
   onStopTone: function onStopTone() {
   },
 
-  onGetSMSC: function onGetSMSC(smsc) {
+  onGetSMSCAddress: function onGetSMSCAddress(smsc) {
     this.SMSC = smsc;
   },
 
-  onSetSMSC: function onSetSMSC() {
+  onSetSMSCAddress: function onSetSMSCAddress() {
   },
 
   onSendSMS: function onSendSMS(messageRef, ackPDU, errorCode) {
