@@ -725,6 +725,25 @@ let RIL = {
   },
 
   /**
+   * Get the Short Message Service Center address.
+   */
+  getSMSCAddress: function getSMSCAddress() {
+    Buf.simpleRequest(REQUEST_GET_SMSC_ADDRESS);
+  },
+
+  /**
+   * Set the Short Message Service Center address.
+   *
+   * @param smsc
+   *        Short Message Service Center address in PDU format.
+   */
+   setSMSCAddress: function setSMSCAddress(smsc) {
+     Buf.newParcel(REQUEST_SET_SMSC_ADDRESS);
+     Buf.writeString(smsc);
+     Buf.sendParcel();
+   },
+
+  /**
    * Handle incoming requests from the RIL. We find the method that
    * corresponds to the request type. Incidentally, the request type
    * _is_ the method name, so that's easy.
@@ -977,8 +996,13 @@ RIL[REQUEST_CDMA_WRITE_SMS_TO_RUIM] = null;
 RIL[REQUEST_CDMA_DELETE_SMS_ON_RUIM] = null;
 RIL[REQUEST_DEVICE_IDENTITY] = null;
 RIL[REQUEST_EXIT_EMERGENCY_CALLBACK_MODE] = null;
-RIL[REQUEST_GET_SMSC_ADDRESS] = null;
-RIL[REQUEST_SET_SMSC_ADDRESS] = null;
+RIL[REQUEST_GET_SMSC_ADDRESS] = function REQUEST_GET_SMSC_ADDRESS() {
+  let smsc = Buf.readString();
+  Phone.onGetSMSC(smsc);
+};
+RIL[REQUEST_SET_SMSC_ADDRESS] = function REQUEST_SET_SMSC_ADDRESS() {
+  Phone.onSetSMSC();
+};
 RIL[REQUEST_REPORT_SMS_MEMORY_STATUS] = null;
 RIL[REQUEST_REPORT_STK_SERVICE_IS_RUNNING] = null;
 RIL[UNSOLICITED_RESPONSE_RADIO_STATE_CHANGED] = function UNSOLICITED_RESPONSE_RADIO_STATE_CHANGED() {
@@ -1064,6 +1088,7 @@ let Phone = {
   IMEI: null,
   IMEISV: null,
   IMSI: null,
+  SMSC: null,
 
   /**
    * List of strings identifying the network operator.
@@ -1156,6 +1181,7 @@ let Phone = {
       RIL.getICCStatus();
       this.requestNetworkInfo();
       RIL.getSignalStrength();
+      RIL.getSMSCAddress();
       this.sendDOMMessage({type: "cardstatechange",
                            cardState: DOM_CARDSTATE_READY});
     }
@@ -1333,6 +1359,13 @@ let Phone = {
   },
 
   onStopTone: function onStopTone() {
+  },
+
+  onGetSMSC: function onGetSMSC(smsc) {
+    this.SMSC = smsc;
+  },
+
+  onSetSMSC: function onSetSMSC() {
   },
 
   onSendSMS: function onSendSMS(messageRef, ackPDU, errorCode) {

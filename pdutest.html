@@ -15,10 +15,6 @@
       <input id="receiverId" type="text" value="+34666000888">
     </p>
     <p>
-      <label for="smsc">SMSC</label>
-      <input id="smsc" type="text" value="+34666222111">
-    </p>
-    <p>
       <label for="msg">Message</label>
       <input id="msg" type="text" value="Hi there...">
     </p>
@@ -389,18 +385,16 @@ let Buf = {
     }
 
     function serialize() {
-      let scAddress = document.getElementById("smsc").value;
       let destinationAddress = document.getElementById("receiverId").value;
       let message = document.getElementById("msg").value;
-      let serialized = PDU.writeMessage(scAddress,
-                                        destinationAddress,
+      let serialized = PDU.writeMessage(destinationAddress,
                                         message,
                                         7);
       let resultDiv = document.getElementById("serializerResult");
       let resultp = document.createElement("p");
       resultDiv.appendChild(resultp);
       let result = document.createElement("h5");
-      let resultStr = document.createTextNode("SMSC: " + serialized.SMSC + " Msg: " + serialized.msg);
+      let resultStr = document.createTextNode(" PDU: " + serialized);
       result.appendChild(resultStr);
       resultp.appendChild(result);
     }
