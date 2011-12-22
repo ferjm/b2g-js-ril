@@ -340,7 +340,7 @@ const PDU_TIMESTAMP_YEAR_OFFSET = 2000;
 
 // 7bit Default Alphabet
 //TODO: maybe convert this to a string? might be faster/cheaper
-const alphabet_7bit = [
+const PDU_ALPHABET_7BIT_DEFAULT = [
   "@",      // COMMERCIAL AT
   "\xa3",   // POUND SIGN
   "$",      // DOLLAR SIGN

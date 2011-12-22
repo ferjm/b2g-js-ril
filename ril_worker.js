@@ -1734,12 +1734,12 @@ let GsmPDUHelper = {
       let septet_mask = (0xff >> (shift + 1));
 
       let septet = ((octet & septet_mask) << shift) | leftOver;
-      ret += alphabet_7bit[septet];
+      ret += PDU_ALPHABET_7BIT_DEFAULT[septet];
       leftOver = (octet & leftOver_mask) >> (7 - shift);
 
       // Every 7th byte we have a whole septet left over that we can apply.
       if (shift == 6) {
-        ret += alphabet_7bit[leftOver];
+        ret += PDU_ALPHABET_7BIT_DEFAULT[leftOver];
         leftOver = 0;
       }
     }
@@ -1761,7 +1761,7 @@ let GsmPDUHelper = {
         }
         break;
       }
-      let charcode = this.charTo7BitCode(message.charAt(i)).toString(2);
+      let charcode = PDU_ALPHABET_7BIT_DEFAULT.indexOf(message.charAt(i)).toString(2);
       octet = ("00000000" + charcode).slice(-7);
       if (i != 0 && i % 8 != 0) {
         octetst = octet.substring(7 - (i) % 8);
@@ -1964,17 +1964,6 @@ let GsmPDUHelper = {
     }
 
     return msg;
-  },
-
-  //DELETEME
-  charTo7BitCode: function charTo7BitCode(c) {
-    for (let i = 0; i < alphabet_7bit.length; i++) {
-      if (alphabet_7bit[i] == c) {
-        return i;
-      }
-    }
-    if (DEBUG) debug("PDU warning: No character found in default 7 bit alphabet for " + c);
-    return null;
   },
 
   /**
