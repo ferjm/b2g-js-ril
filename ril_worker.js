@@ -1750,25 +1750,32 @@ let GsmPDUHelper = {
   },
 
   writeStringAsSeptets: function writeStringAsSeptets(message) {
-    let octet = "";
-    let octetst = "";
-    let octetnd = "";
-    for (let i = 0; i <= message.length; i++) {
-      if (i == message.length) {
-        if (octetnd.length) {
-          let hex = parseInt(octetnd, 2);
-          this.writeHexOctet(hex);
-        }
-        break;
+    let right = 0;
+    for (let i = 0; i < message.length + 1; i++) {
+      let shift = (i % 8);
+      let septet;
+      if (i < message.length) {
+        septet = PDU_ALPHABET_7BIT_DEFAULT.indexOf(message[i]);
+      } else {
+        septet = 0;
       }
-      let charcode = PDU_ALPHABET_7BIT_DEFAULT.indexOf(message.charAt(i)).toString(2);
-      octet = ("00000000" + charcode).slice(-7);
-      if (i != 0 && i % 8 != 0) {
-        octetst = octet.substring(7 - (i) % 8);
-        let hex = parseInt((octetst + octetnd), 2);
-        this.writeHexOctet(hex);
+      if (septet == -1) {
+        if (DEBUG) debug("Fffff, "  + message[i] + " not in 7 bit alphabet!");
+        septet = 0;
       }
-      octetnd = octet.substring(0, 7 - (i) % 8);
+      if (shift == 0) {
+        // We're at the beginning of a cycle, but we need two septet values
+        // to make an octet. So we're going to have to sit this one out.
+        right = septet;
+        continue;
+      }
+
+      let left_mask = 0xff >> (8 - shift);
+      let right_mask = (0xff << shift) & 0xff;
+      let left = (septet & left_mask) << (8 - shift);
+      let octet = left | right;
+      this.writeHexOctet(left | right);
+      right = (septet & right_mask) >> shift;
     }
   },
 
