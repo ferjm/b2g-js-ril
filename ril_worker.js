@@ -1749,6 +1749,29 @@ let GsmPDUHelper = {
     return ret;
   },
 
+  writeStringAsSeptets: function writeStringAsSeptets(message) {
+    let octet = "";
+    let octetst = "";
+    let octetnd = "";
+    for (let i = 0; i <= message.length; i++) {
+      if (i == message.length) {
+        if (octetnd.length) {
+          let hex = ("00" + parseInt(octetnd, 2).toString(16)).slice(-2);
+          this.writeHexCode(hex);
+        }
+        break;
+      }
+      let charcode = this.charTo7BitCode(message.charAt(i)).toString(2);
+      octet = ("00000000" + charcode).slice(-7);
+      if (i != 0 && i % 8 != 0) {
+        octetst = octet.substring(7 - (i) % 8);
+        let hex = ("00" + parseInt((octetst + octetnd), 2).toString(16)).slice(-2);
+        this.writeHexCode(hex);
+      }
+      octetnd = octet.substring(0, 7 - (i) % 8);
+    }
+  },
+
   /**
    * Read user data and decode as a UCS2 string.
    *
@@ -1758,7 +1781,14 @@ let GsmPDUHelper = {
    * @return a string.
    */
   readUCS2String: function readUCS2String(length) {
-    //TODO
+    //TODO bug 712804
+  },
+
+  /**
+   * Write user data as a UCS2 string.
+   */
+  writeUCS2String: function writeUCS2String(message) {
+    //TODO bug 712804
   },
 
   /**
@@ -2059,18 +2089,16 @@ let GsmPDUHelper = {
 
     // - Data coding scheme -
     // For now it assumes bits 7..4 = 1111 except for the 16 bits use case
-    {
-      let dcs = 0;
-      switch (encoding) {
-        case 8:
-          dcs |= PDU_DCS_MSG_CODING_8BITS_ALPHABET;
-          break;
-        case 16:
-          dcs |= PDU_DCS_MSG_CODING_16BITS_ALPHABET;
-          break;
-      }
-      this.writeHexOctet(dcs);
+    let dcs = 0;
+    switch (encoding) {
+      case 8:
+        dcs |= PDU_DCS_MSG_CODING_8BITS_ALPHABET;
+        break;
+      case 16:
+        dcs |= PDU_DCS_MSG_CODING_16BITS_ALPHABET;
+        break;
     }
+    this.writeHexOctet(dcs);
 
     // - Validity Period -
     if (validity) {
@@ -2086,32 +2114,13 @@ let GsmPDUHelper = {
     let pdu = "";
     switch(encoding) {
       case 7:
-        let octet = "";
-        let octetst = "";
-        let octetnd = "";
-        for (let i = 0; i <= message.length; i++) {
-          if (i == message.length) {
-            if (octetnd.length) {
-              let hex = ("00" + parseInt(octetnd, 2).toString(16)).slice(-2);
-              this.writeHexCode(hex);
-            }
-            break;
-          }
-          let charcode = this.charTo7BitCode(message.charAt(i)).toString(2);
-          octet = ("00000000" + charcode).slice(-7);
-          if (i != 0 && i % 8 != 0) {
-            octetst = octet.substring(7 - (i) % 8);
-            let hex = ("00" + parseInt((octetst + octetnd), 2).toString(16)).slice(-2);
-            this.writeHexCode(hex);
-          }
-          octetnd = octet.substring(0, 7 - (i) % 8);
-        }
+        this.writeStringAsSeptets(message);
         break;
       case 8:
-        //TODO:
+        // Unsupported.
         break;
       case 16:
-        //TODO:
+        this.writeUCS2String(message);
         break;
     }
     // Write end of string to Buf
