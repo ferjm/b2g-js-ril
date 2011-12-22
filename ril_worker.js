@@ -670,8 +670,15 @@ let RIL = {
    *
    * @param smscPDU
    *        String containing the SMSC PDU in hex format.
-   * @param pdu
-   *        String containing the PDU in hex format.
+   * @param address
+   *        String containing the recipients address.
+   * @param body
+   *        String containing the message body.
+   * @param dcs
+   *        Data coding scheme. One of the PDU_DCS_MSG_CODING_*BITS_ALPHABET
+   *        constants.
+   * @param bodyLengthInOctets
+   *        Byte length of the message body when encoded with the given DCS.
    */
   sendSMS: function sendSMS(smscPDU, address, body, dcs, bodyLengthInOctets) {
     let token = Buf.newParcel(REQUEST_SEND_SMS);
