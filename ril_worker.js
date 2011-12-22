@@ -103,9 +103,6 @@ let Buf = {
     // Leave room for the parcel size for outgoing parcels.
     this.outgoingIndex = PARCEL_SIZE_SIZE;
 
-    // Leave room for the string size for new strings.
-    this.newStringIndex = 0;
-
     // How many bytes we've read for this parcel so far.
     this.readIncoming = 0;
 
