@@ -303,33 +303,6 @@ let Buf = {
     }
   },
 
-  startString: function startString() {
-    // String size will allways be the first byte of the string in its parcel
-    // representation, but it is the last thing to be written, so we need to
-    // store the current index off to a temporary to be reset after we write
-    // the string size.
-    this.newStringIndex = this.outgoingIndex;
-    // We also need to leave room for the string size.
-    this.outgoingIndex += STRING_SIZE_SIZE;
-  },
-
-  finishString: function finishString() {
-    // Compute the size of the string and write it to the front of the string
-    // where we left room for it.
-    let stringSize = (this.outgoingIndex - (this.newStringIndex + STRING_SIZE_SIZE)) / 2;
-    let currentIndex = this.outgoingIndex;
-    this.outgoingIndex = this.newStringIndex;
-    this.writeUint32(stringSize);
-    // Restart the indexes.
-    this.outgoingIndex = currentIndex;
-    this.newStringIndex = 0;
-    // Write the end of string as \0\0 in case of string length even or \0 odd.
-    this.writeUint16(0);
-    if(!(stringSize & 1)) {
-      this.writeUint16(0);
-    }
-  },
-
   writeParcelSize: function writeParcelSize(value) {
     /**
      *  Parcel size will always be the first thing in the parcel byte
@@ -704,7 +677,7 @@ let RIL = {
    * @param pdu
    *        String containing the PDU in hex format.
    */
-  sendSMS: function sendSMS(smscPDU, address, message) {
+  sendSMS: function sendSMS(smscPDU, address, body, dcs, bodyLengthInOctets) {
     let token = Buf.newParcel(REQUEST_SEND_SMS);
     //TODO we want to map token to the input values so that on the
     // response from the RIL device we know which SMS request was successful
@@ -712,7 +685,7 @@ let RIL = {
     // handle it within tokenRequestMap[].
     Buf.writeUint32(2);
     Buf.writeString(smscPDU);
-    GsmPDUHelper.writeMessage(address, message, 7);
+    GsmPDUHelper.writeMessage(address, body, dcs, bodyLengthInOctets);
     Buf.sendParcel();
   },
 
@@ -1400,11 +1373,7 @@ let Phone = {
   },
 
   onSendSMS: function onSendSMS(messageRef, ackPDU, errorCode) {
-    // Successfull completion of sendSMS.
-    this.sendDOMMessage({type: "sendsms",
-                        messageRef: messageRef,
-                        ackPDU: ackPDU,
-                        errorCode: errorCode});
+    //TODO
   },
 
   onNewSMS: function onNewSMS(payloadLength) {
@@ -1555,27 +1524,24 @@ let Phone = {
    *
    * @param number
    *        String containing the recipient number.
-   * @param message
+   * @param body
    *        String containing the message text.
    */
   sendSMS: function sendSMS(options) {
     // Get the SMS Center address
     if (!this.SMSC) {
-      if (DEBUG) {
-        debug("Cannot send the SMS. Need to get the SMSC address first");
-      }
-      RIL.getSMSCAddress();
-      // TODO: should we wait for it and retry? Should we return?
+      //TODO: we shouldn't get here, but if we do, we might want to hold on
+      // to the message and retry once we know the SMSC... or just notify an
+      // error to the mainthread and let them deal with retrying?
+      debug("Cannot send the SMS. Need to get the SMSC address first.");
       return;
     }
-    if (!options.number) {
-      if (DEBUG) {
-        debug("Cannot send an SMS without a destination number");
-        // TODO: how to return error?
-        return;
-      }
-    }
-    RIL.sendSMS(this.SMSC, options.number, options.message);
+    //TODO: verify values on 'options'
+    //TODO: the data encoding and length in octets should eventually be
+    // computed on the mainthread and passed down to us.
+    RIL.sendSMS(this.SMSC, options.number, options.body,
+                PDU_DCS_MSG_CODING_7BITS_ALPHABET, //TODO: hard-coded for now,
+                Math.ceil(options.body.length * 7 / 8)); //TODO: ditto
   },
 
   /**
@@ -1830,16 +1796,16 @@ let GsmPDUHelper = {
       debug("Coding scheme: " + codingScheme);
     }
     // 7 bit is the default fallback encoding.
-    let encoding = 7;
+    let encoding = PDU_DCS_MSG_CODING_7BITS_ALPHABET;
     switch (codingScheme & 0xC0) {
       case 0x0:
         // bits 7..4 = 00xx
         switch (codingScheme & 0x0C) {
           case 0x4:
-            encoding = 8;
+            encoding = PDU_DCS_MSG_CODING_8BITS_ALPHABET;
             break;
           case 0x8:
-            encoding = 16;
+            encoding = PDU_DCS_MSG_CODING_16BITS_ALPHABET;
             break;
         }
         break;
@@ -1847,11 +1813,11 @@ let GsmPDUHelper = {
         // bits 7..4 = 11xx
         switch (codingScheme & 0x30) {
           case 0x20:
-            encoding = 16;
+            encoding = PDU_DCS_MSG_CODING_16BITS_ALPHABET;
             break;
           case 0x30:
             if (!codingScheme & 0x04) {
-              encoding = 8;
+              encoding = PDU_DCS_MSG_CODING_8BITS_ALPHABET;
             }
             break;
         }
@@ -1863,7 +1829,7 @@ let GsmPDUHelper = {
 
     if (DEBUG) debug("PDU: message encoding is " + encoding + " bit.");
     switch (encoding) {
-      case 7:
+      case PDU_DCS_MSG_CODING_7BITS_ALPHABET:
         // 7 bit encoding allows 140 octets, which means 160 characters
         // ((140x8) / 7 = 160 chars)
         if (length > PDU_MAX_USER_DATA_7BIT) {
@@ -1871,10 +1837,10 @@ let GsmPDUHelper = {
           return null;
         }
         return this.readSeptetsToString(length);
-      case 8:
+      case PDU_DCS_MSG_CODING_8BITS_ALPHABET:
         // Unsupported.
         return null;
-      case 16:
+      case PDU_DCS_MSG_CODING_16BITS_ALPHABET:
         return this.readUCS2String(length);
     }
     return null;
@@ -1996,23 +1962,28 @@ let GsmPDUHelper = {
   /**
    * Serialize a SMS-SUBMIT PDU message and write it to the output stream.
    *
+   * This method expects that a data coding scheme has been chosen already
+   * and that the length of the user data payload in that encoding is known,
+   * too. Both go hand in hand together anyway.
+   *
    * @param address
    *        String containing the address (number) of the SMS receiver
-   * @param message
+   * @param userData
    *        String containing the message to be sent as user data
-   * @param validity
-   *        TBD
-   * @param udhi
-   *         User Data Header information
+   * @param dcs
+   *        Data coding scheme. One of the PDU_DCS_MSG_CODING_*BITS_ALPHABET
+   *        constants.
+   * @param userDataLengthInOctets
+   *        Byte length of the user data when encoded with the given DCS.
    */
   writeMessage: function writeMessage(address,
-                                      message,
-                                      encoding,
-                                      validity,
-                                      udhi) {
+                                      userData,
+                                      dcs,
+                                      userDataLengthInOctets) {
     // SMS-SUBMIT Format:
     //
-    // PDU Type & Message Reference - 1 octet
+    // PDU Type - 1 octet
+    // Message Reference - 1 octet
     // DA - Destination Address - 2 to 12 octets
     // PID - Protocol Identifier - 1 octet
     // DCS - Data Coding Scheme - 1 octet
@@ -2020,14 +1991,25 @@ let GsmPDUHelper = {
     // UDL - User Data Length - 1 octet
     // UD - User Data - 140 octets
 
-    // Phones allow empty sms
-    if (message == null) {
-      if (DEBUG) debug("PDU warning: message is empty");
-      return;
+    let addressFormat = PDU_TOA_ISDN; // 81
+    if (address[0] == '+') {
+      addressFormat = PDU_TOA_INTERNATIONAL | PDU_TOA_ISDN; // 91
+      address = address.substring(1);
+    }
+    //TODO validity is unsupported for now
+    let validity = 0;
+
+    let pduOctetLength = 4 + // PDU Type, Message Ref, address length + format
+                         Math.ceil(address.length / 2) +
+                         3 + // PID, DCS, UDL
+                         userDataLengthInOctets;
+    if (validity) {
+      //TODO: add more to pduOctetLength
     }
 
-    // Start the string to write to the circular buffer
-    Buf.startString();
+    // Start the string. Since octets are represented in hex, we will need
+    // twice as many characters as octets.
+    Buf.writeUint32(pduOctetLength * 2);
 
     // - PDU-TYPE-
 
@@ -2061,6 +2043,7 @@ let GsmPDUHelper = {
     if (validity) {
       firstOctet |= 0x10;
     }
+    let udhi = ""; // TODO for now this is unsupported
     if (udhi) {
       firstOctet |= 0x40;
     }
@@ -2070,14 +2053,6 @@ let GsmPDUHelper = {
     this.writeHexOctet(0x00);
 
     // - Destination Address -
-    // International format
-    let addressFormat;
-    if (address[0] == '+') {
-      addressFormat = PDU_TOA_INTERNATIONAL | PDU_TOA_ISDN; // 91
-      address = address.substring(1);
-    } else {
-      addressFormat = PDU_TOA_ISDN; // 81
-    }
     this.writeHexOctet(address.length);
     this.writeHexOctet(addressFormat);
     this.writeSwappedNibbleBCD(address);
@@ -2087,15 +2062,6 @@ let GsmPDUHelper = {
 
     // - Data coding scheme -
     // For now it assumes bits 7..4 = 1111 except for the 16 bits use case
-    let dcs = 0;
-    switch (encoding) {
-      case 8:
-        dcs |= PDU_DCS_MSG_CODING_8BITS_ALPHABET;
-        break;
-      case 16:
-        dcs |= PDU_DCS_MSG_CODING_16BITS_ALPHABET;
-        break;
-    }
     this.writeHexOctet(dcs);
 
     // - Validity Period -
@@ -2103,26 +2069,28 @@ let GsmPDUHelper = {
       this.writeHexOctet(validity);
     }
 
-    // - User Data Length -
-    //TODO XXX this is wrong, needs to be length in septets if encoding == 7
-    let messageLength = message.length;
-    this.writeHexOctet(messageLength);
-
     // - User Data -
-    let pdu = "";
-    switch (encoding) {
-      case 7:
-        this.writeStringAsSeptets(message);
+    let userDataLength = userData.length;
+    if (dcs == PDU_DCS_MSG_CODING_16BITS_ALPHABET) {
+      userDataLength = userData.length * 2;
+    }
+    this.writeHexOctet(userDataLength);
+    switch (dcs) {
+      case PDU_DCS_MSG_CODING_7BITS_ALPHABET:
+        this.writeStringAsSeptets(userData);
         break;
-      case 8:
+      case PDU_DCS_MSG_CODING_8BITS_ALPHABET:
         // Unsupported.
         break;
-      case 16:
-        this.writeUCS2String(message);
+      case PDU_DCS_MSG_CODING_16BITS_ALPHABET:
+        this.writeUCS2String(userData);
         break;
     }
-    // Write end of string to Buf
-    Buf.finishString();
+
+    // End of the string. The string length is always even by definition, so
+    // we write two \0 delimiters.
+    Buf.writeUint16(0);
+    Buf.writeUint16(0);
   }
 };
 

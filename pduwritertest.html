@@ -162,10 +162,12 @@
     }
 
 
-    function test(testId, address, message, validity, pdu) {
+    function test(testId, address, message, pdu) {
       printTest(testId);
       Buf.init();
-      GsmPDUHelper.writeMessage(address, message, 7, validity);
+      GsmPDUHelper.writeMessage(address, message,
+                                PDU_DCS_MSG_CODING_7BITS_ALPHABET,
+                                Math.ceil(message.length * 7 / 8));
       Buf.outgoingIndex = Buf.newStringIndex + STRING_SIZE_SIZE;
       let msg = readString();
       msg = msg.toUpperCase();
@@ -180,13 +182,13 @@
       }
     }
     function runTests() {
-      test("TEST 0", "+46708251358", "hellohello", 0xaa,
-                     "11000B916407281553F80000AA0AE8329BFD4697D9EC37");
-      test("TEST 1", "+34666200200", "Hello World", 0,
+      test("TEST 0", "+46708251358", "hellohello",
+                     "01000B916407281553F800000AE8329BFD4697D9EC37");
+      test("TEST 1", "+34666200200", "Hello World",
                      "01000B914366260002F000000BC8329BFD065DDF723619");
-      test("TEST 2", "+34666200200", "", 0,
+      test("TEST 2", "+34666200200", "",
                      "01000B914366260002F0000000");
-      test("TEST 3", "34666333888", "Hello World", 0,
+      test("TEST 3", "34666333888", "Hello World",
                      "01000B914366363388F800000BC8329BFD065DDF723619");
     }
   </script>
