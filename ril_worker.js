@@ -1591,11 +1591,11 @@ let GsmPDUHelper = {
   readHexNibble: function readHexNibble() {
     let nibble = Buf.readUint16();
     if (nibble >= 48 && nibble <= 57) {
-      nibble -= 48;
+      nibble -= 48; // ASCII '0'..'9'
     } else if (nibble >= 65 && nibble <= 70) {
-      nibble -= 55;
+      nibble -= 55; // ASCII 'A'..'F'
     } else if (nibble >= 97 && nibble <= 102) {
-      nibble -= 87;
+      nibble -= 87; // ASCII 'a'..'f'
     } else {
       throw "Found invalid nibble during PDU parsing: " +
             String.fromCharCode(nibble);
@@ -1612,9 +1612,9 @@ let GsmPDUHelper = {
   writeHexNibble: function writeHexNibble(nibble) {
     nibble &= 0x0f;
     if (nibble < 10) {
-      nibble += 48;
+      nibble += 48; // ASCII '0'
     } else {
-      nibble += 55;
+      nibble += 55; // ASCII 'A'
     }
     Buf.writeUint16(nibble);
   },
@@ -2040,15 +2040,15 @@ let GsmPDUHelper = {
     //        0     1       SMS-SUBMIT (MS ==> SMSC)
 
     // PDU type. MTI is set to SMS-SUBMIT
-    let firstOctet = 0x01;
+    let firstOctet = PDU_MTI_SMS_SUBMIT;
 
     // Validity period
     if (validity) {
-      firstOctet |= 0x10;
+      //TODO: not supported yet, OR with one of PDU_VPF_*
     }
-    let udhi = ""; // TODO for now this is unsupported
+    let udhi = ""; //TODO: for now this is unsupported
     if (udhi) {
-      firstOctet |= 0x40;
+      firstOctet |= PDU_UDHI;
     }
     this.writeHexOctet(firstOctet);
 
