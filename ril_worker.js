@@ -527,12 +527,30 @@ let RIL = {
    * @param pin
    *        String containing the PIN.
    *
-   * Response will call Phone.onEnterSIMPIN().
+   * Response will call Phone.onEnterICCPIN().
    */
   enterICCPIN: function enterICCPIN(pin) {
     Buf.newParcel(REQUEST_ENTER_SIM_PIN);
     Buf.writeUint32(1);
     Buf.writeString(pin);
+    Buf.sendParcel();
+  },
+
+  /**
+   * Change the current ICC PIN number
+   *
+   * @param oldPin
+   *        String containing the old PIN value
+   * @param newPin
+   *        String containing the new PIN value
+   *
+   * Response will call Phone.onChangeICCPIN().
+   */
+  changeICCPIN: function changeICCPIN(oldPin, newPin) {
+    Buf.newParcel(REQUEST_CHANGE_SIM_PIN);
+    Buf.writeUint32(2);
+    Buf.writeString(oldPin);
+    Buf.writeString(newPin);
     Buf.sendParcel();
   },
 
@@ -794,13 +812,18 @@ RIL[REQUEST_GET_SIM_STATUS] = function REQUEST_GET_SIM_STATUS() {
   Phone.onICCStatus(iccStatus);
 };
 RIL[REQUEST_ENTER_SIM_PIN] = function REQUEST_ENTER_SIM_PIN() {
+  // Response is the number of retries remaining, or -1 if unknown.
   let response = Buf.readUint32List();
   Phone.onEnterICCPIN(response);
 };
 RIL[REQUEST_ENTER_SIM_PUK] = null;
 RIL[REQUEST_ENTER_SIM_PIN2] = null;
 RIL[REQUEST_ENTER_SIM_PUK2] = null;
-RIL[REQUEST_CHANGE_SIM_PIN] = null;
+RIL[REQUEST_CHANGE_SIM_PIN] = {
+  // Response is the number of retries remaining, or -1 if unknown.
+  let response = Buf.readUint32List();
+  Phone.onChangeICCPIN(response);
+};
 RIL[REQUEST_CHANGE_SIM_PIN2] = null;
 RIL[REQUEST_ENTER_NETWORK_DEPERSONALIZATION] = null;
 RIL[REQUEST_GET_CURRENT_CALLS] = function REQUEST_GET_CURRENT_CALLS(length) {
@@ -1291,6 +1314,11 @@ let Phone = {
 
   onEnterICCPIN: function onEnterICCPIN(response) {
     debug("REQUEST_ENTER_SIM_PIN returned " + response);
+    //TODO
+  },
+
+  onChangeICCPIN: function onChangeICCPIN(response) {
+    debug("REQUEST_CHANGE_SIM_PIN returned " + response);
     //TODO
   },
 
