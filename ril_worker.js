@@ -555,6 +555,24 @@ let RIL = {
   },
 
   /**
+   * Supplies SIM PUK and a new PIN to unlock the ICC
+   *
+   * @param puk
+   *        String containing the PUK value.
+   * @param newPin
+   *        String containing the new PIN value.
+   *
+   * Response will call Phone.onEnterICCPUK().
+   */
+   enterICCPUK: function enterICCPUK(puk, newPin) {
+     Buf.newParcel(REQUEST_ENTER_SIM_PUK);
+     Buf.writeUint32(2);
+     Buf.writeString(puk);
+     Buf.writeString(newPin);
+     Buf.sendParcel();
+   },
+
+  /**
    * Request the phone's radio power to be switched on or off.
    *
    * @param on
@@ -812,17 +830,19 @@ RIL[REQUEST_GET_SIM_STATUS] = function REQUEST_GET_SIM_STATUS() {
   Phone.onICCStatus(iccStatus);
 };
 RIL[REQUEST_ENTER_SIM_PIN] = function REQUEST_ENTER_SIM_PIN() {
-  // Response is the number of retries remaining, or -1 if unknown.
+  // Response is the number of retries remaining or -1 if unknown.
   let response = Buf.readUint32List();
   Phone.onEnterICCPIN(response);
 };
-RIL[REQUEST_ENTER_SIM_PUK] = null;
+RIL[REQUEST_ENTER_SIM_PUK] = function REQUEST_ENTER_SIM_PUK() {
+  // Response is the number of retries remaining or -1 if unknown.
+  let response = Buf.readUint32List();
+  Phone.onEnterICCPUK(response);
+};
 RIL[REQUEST_ENTER_SIM_PIN2] = null;
 RIL[REQUEST_ENTER_SIM_PUK2] = null;
-RIL[REQUEST_CHANGE_SIM_PIN] = {
-  // Response is the number of retries remaining, or -1 if unknown.
-  let response = Buf.readUint32List();
-  Phone.onChangeICCPIN(response);
+RIL[REQUEST_CHANGE_SIM_PIN] = function REQUEST_CHANGE_SIM_PIN() {
+  Phone.onChangeICCPIN();
 };
 RIL[REQUEST_CHANGE_SIM_PIN2] = null;
 RIL[REQUEST_ENTER_NETWORK_DEPERSONALIZATION] = null;
@@ -1317,8 +1337,13 @@ let Phone = {
     //TODO
   },
 
-  onChangeICCPIN: function onChangeICCPIN(response) {
-    debug("REQUEST_CHANGE_SIM_PIN returned " + response);
+  onChangeICCPIN: function onChangeICCPIN() {
+    debug("REQUEST_CHANGE_SIM_PIN");
+    //TODO
+  },
+
+  onEnterICCPUK: function onEnterICCPUK(response) {
+    debug("REQUEST_ENTER_SIM_PUK returned " + response);
     //TODO
   },
 
