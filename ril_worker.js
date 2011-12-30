@@ -1325,11 +1325,60 @@ let Phone = {
   },
 
   onICCStatus: function onICCStatus(iccStatus) {
+    if ((!iccStatus) || (iccStatus.cardState == CARDSTATE_ABSENT)) {
+      debug("ICC card abstent");
+      this.iccStatus = ICC_STATE_ABSENT;
+    }
+
+    if ((this.radioState == RADIO_STATE_OFF) ||
+       (this.radioState == RADIO_STATE_UNAVAILABLE) ||
+       (this.radioState == RADIO_STATE_SIM_NOT_READY) ||
+       (this.radioState == RADIO_STATE_RUIM_NOT_READY) ||
+       (this.radioState == RADIO_STATE_NV_NOT_READY) ||
+       (this.radioState == RADIO_STATE_NV_READY)) {
+      debug("ICC card not ready");
+      this.iccStatus = ICC_STATE_NOT_READY;
+    }
+
+    if ((this.radioState == RADIO_STATE_SIM_LOCKED_OR_ABSENT) ||
+       (this.radioState == RADIO_STATE_SIM_READY) ||
+       (this.radioState == RADIO_STATE_RUIM_LOCKED_OR_ABSENT) ||
+       (this.radioState == RADIO_STATE_RUIM_READY)) {
+      let app;
+      if (!(app = iccStatus.apps[iccStatus.gsmUmtsSubscriptionAppIndex])) {
+        debug("Subscription application is not present in iccStatus. ICC card state: absent");
+        this.iccStatus = ICC_STATE_ABSENT;
+        return;
+      }
+
+      switch (app.app_state) {
+        case APPSTATE_PIN:
+          this.iccStatus = ICC_STATE_PIN_REQUIRED;
+          break;
+        case APPSTATE_PUK:
+          this.iccStatus = ICC_STATE_PUK_REQUIRED;
+          break;
+        case APPSTATE_SUBSCRIPTION_PERSO:
+          this.iccStatus = ICC_STATE_NETWORK_LOCKED;
+          break;
+        case APPSTATE_READY:
+          this.iccStatus = ICC_STATE_READY;
+          break;
+        case APPSTATE_UNKNOWN:
+          this.iccStatus = ICC_STATE_NOT_READY;
+          break;
+        case APPSTATE_DETECTED:
+          this.iccStatus = ICC_STATE_NOT_READY;
+          break;
+        default:
+          this.iccStatus = ICC_STATE_NOT_READY;
+      }
+    }
     debug("SIM card state is " + iccStatus.cardState);
     debug("Universal PIN state is " + iccStatus.universalPINState);
+    debug("this.iccStatus: " + this.iccStatus);
     debug(iccStatus);
-    //TODO set to simStatus and figure out state transitions.
-    this.iccStatus = iccStatus; //XXX TODO
+    //TODO: send DOM message
   },
 
   onEnterICCPIN: function onEnterICCPIN(response) {
@@ -1734,7 +1783,7 @@ let GsmPDUHelper = {
 
   /**
    * Write numerical data as swapped nibble BCD.
-   * 
+   *
    * @param data
    *        Data to write (as a string or a number)
    */

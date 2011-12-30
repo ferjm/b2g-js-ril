@@ -191,6 +191,32 @@ const RADIO_STATE_NV_READY = 9;
 
 const CARD_MAX_APPS = 8;
 
+/**
+ * Icc card states
+ */
+const ICC_STATE_UNKWNON = 0;
+const ICC_STATE_ABSENT = 1;
+const ICC_STATE_PIN_REQUIRED = 2;
+const ICC_STATE_PUK_REQUIRED = 3;
+const ICC_STATE_NETWORK_LOCKED = 4;
+const ICC_STATE_READY = 5;
+const ICC_STATE_NOT_READY = 6;
+
+const CARDSTATE_ABSENT = 0;
+const CARDSTATE_PRESENT = 1;
+const CARDSTATE_ERROR = 2;
+
+/**
+ * RIL_AppState
+ */
+const APPSTATE_UNKNOWN = 0;
+const APPSTATE_DETECTED = 1;
+const APPSTATE_PIN = 2; /* If PIN1 or UPin is required */
+const APPSTATE_PUK = 3; /* If PUK1 or Puk for UPin is required */
+const APPSTATE_SUBSCRIPTION_PERSO = 4; /* perso_substate should be look at
+                                          when app_state is assigned to this value */
+const APPSTATE_READY = 5;
+
 const CALL_STATE_ACTIVE = 0;
 const CALL_STATE_HOLDING = 1;
 const CALL_STATE_DIALING = 2;
