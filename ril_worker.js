@@ -1327,7 +1327,7 @@ let Phone = {
   onICCStatus: function onICCStatus(iccStatus) {
     if ((!iccStatus) || (iccStatus.cardState == CARDSTATE_ABSENT)) {
       debug("ICC card abstent");
-      this.iccStatus = ICC_STATE_ABSENT;
+      this.iccStatus = DOM_CARDSTATE_ABSENT;
     }
 
     if ((this.radioState == RADIO_STATE_OFF) ||
@@ -1337,7 +1337,7 @@ let Phone = {
        (this.radioState == RADIO_STATE_NV_NOT_READY) ||
        (this.radioState == RADIO_STATE_NV_READY)) {
       debug("ICC card not ready");
-      this.iccStatus = ICC_STATE_NOT_READY;
+      this.iccStatus = DOM_CARDSTATE_NOT_READY;
     }
 
     if ((this.radioState == RADIO_STATE_SIM_LOCKED_OR_ABSENT) ||
@@ -1347,38 +1347,39 @@ let Phone = {
       let app;
       if (!(app = iccStatus.apps[iccStatus.gsmUmtsSubscriptionAppIndex])) {
         debug("Subscription application is not present in iccStatus. ICC card state: absent");
-        this.iccStatus = ICC_STATE_ABSENT;
+        this.iccStatus = DOM_CARDSTATE_ABSENT;
         return;
       }
 
       switch (app.app_state) {
         case APPSTATE_PIN:
-          this.iccStatus = ICC_STATE_PIN_REQUIRED;
+          this.iccStatus = DOM_CARDSTATE_PIN_REQUIRED;
           break;
         case APPSTATE_PUK:
-          this.iccStatus = ICC_STATE_PUK_REQUIRED;
+          this.iccStatus = DOM_CARDSTATE_PUK_REQUIRED;
           break;
         case APPSTATE_SUBSCRIPTION_PERSO:
-          this.iccStatus = ICC_STATE_NETWORK_LOCKED;
+          this.iccStatus = DOM_CARDSTATE_NETWORK_LOCKED;
           break;
         case APPSTATE_READY:
-          this.iccStatus = ICC_STATE_READY;
+          this.iccStatus = DOM_CARDSTATE_READY;
           break;
         case APPSTATE_UNKNOWN:
-          this.iccStatus = ICC_STATE_NOT_READY;
+          this.iccStatus = DOM_CARDSTATE_NOT_READY;
           break;
         case APPSTATE_DETECTED:
-          this.iccStatus = ICC_STATE_NOT_READY;
+          this.iccStatus = DOM_CARDSTATE_NOT_READY;
           break;
         default:
-          this.iccStatus = ICC_STATE_NOT_READY;
+          this.iccStatus = DOM_CARDSTATE_NOT_READY;
       }
     }
     debug("SIM card state is " + iccStatus.cardState);
     debug("Universal PIN state is " + iccStatus.universalPINState);
     debug("this.iccStatus: " + this.iccStatus);
     debug(iccStatus);
-    //TODO: send DOM message
+    this.sendDOMMessage({type: "cardstatechange",
+                         cardState: this.iccStatus});
   },
 
   onEnterICCPIN: function onEnterICCPIN(response) {
