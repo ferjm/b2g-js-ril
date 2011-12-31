@@ -1374,9 +1374,7 @@ let Phone = {
           this.iccStatus = DOM_CARDSTATE_NOT_READY;
       }
     }
-    debug("SIM card state is " + iccStatus.cardState);
-    debug("Universal PIN state is " + iccStatus.universalPINState);
-    debug("this.iccStatus: " + this.iccStatus);
+    debug("iccStatus: " + this.iccStatus);
     debug(iccStatus);
     this.sendDOMMessage({type: "cardstatechange",
                          cardState: this.iccStatus});
