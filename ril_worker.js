@@ -1325,8 +1325,8 @@ let Phone = {
   },
 
   onICCStatus: function onICCStatus(iccStatus) {
-    if ((!iccStatus) || (iccStatus.cardState == CARDSTATE_ABSENT)) {
-      debug("ICC card abstent");
+    if ((!iccStatus) || (iccStatus.cardState == DOM_CARDSTATE_ABSENT)) {
+      debug("ICC card absent");
       this.iccStatus = DOM_CARDSTATE_ABSENT;
     }
 
@@ -1365,11 +1365,7 @@ let Phone = {
           this.iccStatus = DOM_CARDSTATE_READY;
           break;
         case APPSTATE_UNKNOWN:
-          this.iccStatus = DOM_CARDSTATE_NOT_READY;
-          break;
         case APPSTATE_DETECTED:
-          this.iccStatus = DOM_CARDSTATE_NOT_READY;
-          break;
         default:
           this.iccStatus = DOM_CARDSTATE_NOT_READY;
       }
