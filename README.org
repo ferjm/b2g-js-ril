@@ -28,7 +28,7 @@ Using the 'js' interpreter executable from a Firefox build:
 To forward the port on the phone to the desktop (for desktop
 development), run the following command:
 
-  adb forward tcp:6200 localreserved:rilb2g
+  adb forward tcp:6200 localreserved:rilproxyd
 
 * Interactive testing in Firefox
 
