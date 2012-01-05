@@ -1101,7 +1101,9 @@ RIL[UNSOLICITED_CALL_RING] = function UNSOLICITED_CALL_RING() {
   }
   Phone.onCallRing(info);
 };
-RIL[UNSOLICITED_RESPONSE_SIM_STATUS_CHANGED] = null;
+RIL[UNSOLICITED_RESPONSE_SIM_STATUS_CHANGED] = function UNSOLICITED_RESPONSE_SIM_STATUS_CHANGED() {
+  this[REQUEST_GET_SIM_STATUS]();
+};
 RIL[UNSOLICITED_RESPONSE_CDMA_NEW_SMS] = null;
 RIL[UNSOLICITED_RESPONSE_NEW_BROADCAST_SMS] = null;
 RIL[UNSOLICITED_CDMA_RUIM_SMS_STORAGE_FULL] = null;
@@ -1330,10 +1332,15 @@ let Phone = {
   onICCStatus: function onICCStatus(iccStatus) {
     // Keeps a reference to iccStatus
     this.iccStatus = iccStatus;
-
+    
     if ((!iccStatus) || (iccStatus.cardState == CARD_STATE_ABSENT)) {
       if (DEBUG) debug("ICC absent");
+      if (this.gsmCardState == DOM_CARDSTATE_ABSENT) {
+        return;
+      }
       this.gsmCardState = DOM_CARDSTATE_ABSENT;
+      this.sendDOMMessage({type: "cardstatechange",
+                           cardState: this.gsmCardState});
       return;
     }
 
@@ -1344,7 +1351,12 @@ let Phone = {
         (this.radioState == RADIO_STATE_NV_NOT_READY) ||
         (this.radioState == RADIO_STATE_NV_READY)) {
       if (DEBUG) debug("ICC not ready");
+      if (this.gsmCardState == DOM_CARDSTATE_NOT_READY) {
+        return;
+      }
       this.gsmCardState = DOM_CARDSTATE_NOT_READY;
+      this.sendDOMMessage({type: "cardstatechange",
+                           cardState: this.gsmCardState});
       return;
     }
 
@@ -1357,35 +1369,46 @@ let Phone = {
         if (DEBUG) {
           debug("Subscription application is not present in iccStatus.");
         }
+        if (this.gsmCardState == DOM_CARDSTATE_ABSENT) {
+          return;
+        }
         this.gsmCardState = DOM_CARDSTATE_ABSENT;
+        this.sendDOMMessage({type: "cardstatechange",
+                             cardState: this.gsmCardState});
         return;
       }
-
+      
+      let newGsmCardState;
       switch (app.app_state) {
         case CARD_APP_STATE_PIN:
-          this.gsmCardState = DOM_CARDSTATE_PIN_REQUIRED;
+          newGsmCardState = DOM_CARDSTATE_PIN_REQUIRED;
           break;
         case CARD_APP_STATE_PUK:
-          this.gsmCardState = DOM_CARDSTATE_PUK_REQUIRED;
+          newGsmCardState = DOM_CARDSTATE_PUK_REQUIRED;
           break;
         case CARD_APP_STATE_SUBSCRIPTION_PERSO:
-          this.gsmCardState = DOM_CARDSTATE_NETWORK_LOCKED;
+          newGsmCardState = DOM_CARDSTATE_NETWORK_LOCKED;
           break;
         case CARD_APP_STATE_READY:
-          this.gsmCardState = DOM_CARDSTATE_READY;
+          newGsmCardState = DOM_CARDSTATE_READY;
           break;
         case CARD_APP_STATE_UNKNOWN:
         case CARD_APP_STATE_DETECTED:
         default:
-          this.gsmCardState = DOM_CARDSTATE_NOT_READY;
+          newGsmCardState = DOM_CARDSTATE_NOT_READY;
       }
+ 
+      if (this.gsmCardState == newGsmCardState) {
+        return;
+      }
+      this.gsmCardState = newGsmCardState;
+      if (DEBUG) {
+        debug("iccStatus: " + this.iccStatus);
+        debug("gsmCardState: " + this.gsmCardState);
+      }
+      this.sendDOMMessage({type: "cardstatechange",
+                           cardState: this.gsmCardState});    
     }
-    if (DEBUG) {
-      debug("iccStatus: " + this.iccStatus);
-      debug("gsmCardState: " + this.gsmCardState);
-    }
-    this.sendDOMMessage({type: "cardstatechange",
-                         cardState: this.gsmCardState});
   },
 
   onEnterICCPIN: function onEnterICCPIN(response) {
