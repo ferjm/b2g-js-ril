@@ -803,7 +803,7 @@ let RIL = {
 
 RIL[REQUEST_GET_SIM_STATUS] = function REQUEST_GET_SIM_STATUS() {
   let iccStatus = {
-    cardState:                   Buf.readUint32(), // CARDSTATE_*
+    cardState:                   Buf.readUint32(), // CARD_STATE_*
     universalPINState:           Buf.readUint32(), // PINSTATE_*
     gsmUmtsSubscriptionAppIndex: Buf.readUint32(),
     setCdmaSubscriptionAppIndex: Buf.readUint32(),
@@ -818,7 +818,7 @@ RIL[REQUEST_GET_SIM_STATUS] = function REQUEST_GET_SIM_STATUS() {
   for (let i = 0 ; i < apps_length ; i++) {
     iccStatus.apps.push({
       app_type:       Buf.readUint32(), // APPTYPE_*
-      app_state:      Buf.readUint32(), // APPSTATE_*
+      app_state:      Buf.readUint32(), // CARD_APP_STATE_*
       perso_substate: Buf.readUint32(), // PERSOSUBSTATE_*
       aid:            Buf.readString(),
       app_label:      Buf.readString(),
@@ -830,12 +830,10 @@ RIL[REQUEST_GET_SIM_STATUS] = function REQUEST_GET_SIM_STATUS() {
   Phone.onICCStatus(iccStatus);
 };
 RIL[REQUEST_ENTER_SIM_PIN] = function REQUEST_ENTER_SIM_PIN() {
-  // Response is the number of retries remaining or -1 if unknown.
   let response = Buf.readUint32List();
   Phone.onEnterICCPIN(response);
 };
 RIL[REQUEST_ENTER_SIM_PUK] = function REQUEST_ENTER_SIM_PUK() {
-  // Response is the number of retries remaining or -1 if unknown.
   let response = Buf.readUint32List();
   Phone.onEnterICCPUK(response);
 };
@@ -1325,69 +1323,75 @@ let Phone = {
   },
 
   onICCStatus: function onICCStatus(iccStatus) {
-    if ((!iccStatus) || (iccStatus.cardState == DOM_CARDSTATE_ABSENT)) {
-      debug("ICC card absent");
+    if ((!iccStatus) || (iccStatus.cardState == CARD_STATE_ABSENT)) {
+      if (DEBUG) debug("ICC card absent");
       this.iccStatus = DOM_CARDSTATE_ABSENT;
+      return;
     }
 
     if ((this.radioState == RADIO_STATE_OFF) ||
-       (this.radioState == RADIO_STATE_UNAVAILABLE) ||
-       (this.radioState == RADIO_STATE_SIM_NOT_READY) ||
-       (this.radioState == RADIO_STATE_RUIM_NOT_READY) ||
-       (this.radioState == RADIO_STATE_NV_NOT_READY) ||
-       (this.radioState == RADIO_STATE_NV_READY)) {
-      debug("ICC card not ready");
+        (this.radioState == RADIO_STATE_UNAVAILABLE) ||
+        (this.radioState == RADIO_STATE_SIM_NOT_READY) ||
+        (this.radioState == RADIO_STATE_RUIM_NOT_READY) ||
+        (this.radioState == RADIO_STATE_NV_NOT_READY) ||
+        (this.radioState == RADIO_STATE_NV_READY)) {
+      if (DEBUG) debug("ICC card not ready");
       this.iccStatus = DOM_CARDSTATE_NOT_READY;
+      return;
     }
 
     if ((this.radioState == RADIO_STATE_SIM_LOCKED_OR_ABSENT) ||
-       (this.radioState == RADIO_STATE_SIM_READY) ||
-       (this.radioState == RADIO_STATE_RUIM_LOCKED_OR_ABSENT) ||
-       (this.radioState == RADIO_STATE_RUIM_READY)) {
-      let app;
-      if (!(app = iccStatus.apps[iccStatus.gsmUmtsSubscriptionAppIndex])) {
-        debug("Subscription application is not present in iccStatus. ICC card state: absent");
+        (this.radioState == RADIO_STATE_SIM_READY) ||
+        (this.radioState == RADIO_STATE_RUIM_LOCKED_OR_ABSENT) ||
+        (this.radioState == RADIO_STATE_RUIM_READY)) {
+      let app = iccStatus.apps[iccStatus.gsmUmtsSbscriptionAppIndex];
+      if (!app) {
+        if (DEBUG) {
+          debug("Subscription application is not present in iccStatus.");
+        }
         this.iccStatus = DOM_CARDSTATE_ABSENT;
         return;
       }
 
       switch (app.app_state) {
-        case APPSTATE_PIN:
+        case CARD_APP_STATE_PIN:
           this.iccStatus = DOM_CARDSTATE_PIN_REQUIRED;
           break;
-        case APPSTATE_PUK:
+        case CARD_APP_STATE_PUK:
           this.iccStatus = DOM_CARDSTATE_PUK_REQUIRED;
           break;
-        case APPSTATE_SUBSCRIPTION_PERSO:
+        case CARD_APP_STATE_SUBSCRIPTION_PERSO:
           this.iccStatus = DOM_CARDSTATE_NETWORK_LOCKED;
           break;
-        case APPSTATE_READY:
+        case CARD_APP_STATE_READY:
           this.iccStatus = DOM_CARDSTATE_READY;
           break;
-        case APPSTATE_UNKNOWN:
-        case APPSTATE_DETECTED:
+        case CARD_APP_STATE_UNKNOWN:
+        case CARD_APP_STATE_DETECTED:
         default:
           this.iccStatus = DOM_CARDSTATE_NOT_READY;
       }
     }
-    debug("iccStatus: " + this.iccStatus);
-    debug(iccStatus);
+    if (DEBUG) {
+      debug("iccStatus: " + this.iccStatus);
+      debug(iccStatus);
+    }
     this.sendDOMMessage({type: "cardstatechange",
                          cardState: this.iccStatus});
   },
 
   onEnterICCPIN: function onEnterICCPIN(response) {
-    debug("REQUEST_ENTER_SIM_PIN returned " + response);
+    if (DEBUG) debug("REQUEST_ENTER_SIM_PIN returned " + response);    
     //TODO
   },
 
   onChangeICCPIN: function onChangeICCPIN() {
-    debug("REQUEST_CHANGE_SIM_PIN");
+    if (DEBUG) debug("REQUEST_CHANGE_SIM_PIN");
     //TODO
   },
 
   onEnterICCPUK: function onEnterICCPUK(response) {
-    debug("REQUEST_ENTER_SIM_PUK returned " + response);
+    if (DEBUG) debug("REQUEST_ENTER_SIM_PUK returned " + response);
     //TODO
   },
 
@@ -1421,7 +1425,7 @@ let Phone = {
 
   onOperator: function onOperator(operator) {
     if (operator.length < 3) {
-      debug("Expected at least 3 strings for operator.");
+      if (DEBUG) debug("Expected at least 3 strings for operator.");
     }
     if (!this.operator ||
         this.operator.alphaLong  != operator[0] ||
@@ -1486,9 +1490,9 @@ let Phone = {
     // An SMS is a string, but we won't read it as such, so let's read the
     // string length and then defer to PDU parsing helper.
     let messageStringLength = Buf.readUint32();
-    debug("Got new SMS, length " + messageStringLength);
+    if (DEBUG) debug("Got new SMS, length " + messageStringLength);
     let message = GsmPDUHelper.readMessage();
-    debug(message);
+    if (DEBUG) debug(message);
 
     // Read string delimiters. See Buf.readString().
     let delimiter = Buf.readUint16();
@@ -1633,7 +1637,9 @@ let Phone = {
       //TODO: we shouldn't get here, but if we do, we might want to hold on
       // to the message and retry once we know the SMSC... or just notify an
       // error to the mainthread and let them deal with retrying?
-      debug("Cannot send the SMS. Need to get the SMSC address first.");
+      if (DEBUG) {
+        debug("Cannot send the SMS. Need to get the SMSC address first.");
+      }
       return;
     }
     //TODO: verify values on 'options'
@@ -1654,7 +1660,9 @@ let Phone = {
     if (DEBUG) debug("Received DOM message " + JSON.stringify(message));
     let method = this[message.type];
     if (typeof method != "function") {
-      debug("Don't know what to do with message " + JSON.stringify(message));
+      if (DEBUG) {
+        debug("Don't know what to do with message " + JSON.stringify(message));
+      }
       return;
     }
     method.call(this, message);
