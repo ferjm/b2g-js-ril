@@ -1352,7 +1352,7 @@ let Phone = {
         (this.radioState == RADIO_STATE_SIM_READY) ||
         (this.radioState == RADIO_STATE_RUIM_LOCKED_OR_ABSENT) ||
         (this.radioState == RADIO_STATE_RUIM_READY)) {
-      let app = iccStatus.apps[iccStatus.gsmUmtsSbscriptionAppIndex];
+      let app = iccStatus.apps[iccStatus.gsmUmtsSubscriptionAppIndex];
       if (!app) {
         if (DEBUG) {
           debug("Subscription application is not present in iccStatus.");
@@ -1385,7 +1385,7 @@ let Phone = {
       debug("gsmCardState: " + this.gsmCardState);
     }
     this.sendDOMMessage({type: "cardstatechange",
-                         cardState: this.iccStatus});
+                         cardState: this.gsmCardState});
   },
 
   onEnterICCPIN: function onEnterICCPIN(response) {
