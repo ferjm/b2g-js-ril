@@ -1156,14 +1156,15 @@ let Phone = {
   networkSelectionMode: null,
 
   /**
-   * ICC status
+   * ICC status. Keeps a reference of the data response to the
+   * getICCStatus request.
    */
   iccStatus: null,
 
   /**
-   * GSM card state
+   * Card state
    */
-  gsmCardState: null,
+  cardState: null,
 
   /**
    * Active calls
@@ -1330,17 +1331,16 @@ let Phone = {
   },
 
   onICCStatus: function onICCStatus(iccStatus) {
-    // Keeps a reference to iccStatus
     this.iccStatus = iccStatus;
     
     if ((!iccStatus) || (iccStatus.cardState == CARD_STATE_ABSENT)) {
       if (DEBUG) debug("ICC absent");
-      if (this.gsmCardState == DOM_CARDSTATE_ABSENT) {
+      if (this.cardState == DOM_CARDSTATE_ABSENT) {
         return;
       }
-      this.gsmCardState = DOM_CARDSTATE_ABSENT;
+      this.cardState = DOM_CARDSTATE_ABSENT;
       this.sendDOMMessage({type: "cardstatechange",
-                           cardState: this.gsmCardState});
+                           cardState: this.cardState});
       return;
     }
 
@@ -1351,12 +1351,12 @@ let Phone = {
         (this.radioState == RADIO_STATE_NV_NOT_READY) ||
         (this.radioState == RADIO_STATE_NV_READY)) {
       if (DEBUG) debug("ICC not ready");
-      if (this.gsmCardState == DOM_CARDSTATE_NOT_READY) {
+      if (this.cardState == DOM_CARDSTATE_NOT_READY) {
         return;
       }
-      this.gsmCardState = DOM_CARDSTATE_NOT_READY;
+      this.cardState = DOM_CARDSTATE_NOT_READY;
       this.sendDOMMessage({type: "cardstatechange",
-                           cardState: this.gsmCardState});
+                           cardState: this.cardState});
       return;
     }
 
@@ -1369,45 +1369,45 @@ let Phone = {
         if (DEBUG) {
           debug("Subscription application is not present in iccStatus.");
         }
-        if (this.gsmCardState == DOM_CARDSTATE_ABSENT) {
+        if (this.cardState == DOM_CARDSTATE_ABSENT) {
           return;
         }
-        this.gsmCardState = DOM_CARDSTATE_ABSENT;
+        this.cardState = DOM_CARDSTATE_ABSENT;
         this.sendDOMMessage({type: "cardstatechange",
-                             cardState: this.gsmCardState});
+                             cardState: this.cardState});
         return;
       }
       
-      let newGsmCardState;
+      let newCardState;
       switch (app.app_state) {
         case CARD_APP_STATE_PIN:
-          newGsmCardState = DOM_CARDSTATE_PIN_REQUIRED;
+          newCardState = DOM_CARDSTATE_PIN_REQUIRED;
           break;
         case CARD_APP_STATE_PUK:
-          newGsmCardState = DOM_CARDSTATE_PUK_REQUIRED;
+          newCardState = DOM_CARDSTATE_PUK_REQUIRED;
           break;
         case CARD_APP_STATE_SUBSCRIPTION_PERSO:
-          newGsmCardState = DOM_CARDSTATE_NETWORK_LOCKED;
+          newCardState = DOM_CARDSTATE_NETWORK_LOCKED;
           break;
         case CARD_APP_STATE_READY:
-          newGsmCardState = DOM_CARDSTATE_READY;
+          newCardState = DOM_CARDSTATE_READY;
           break;
         case CARD_APP_STATE_UNKNOWN:
         case CARD_APP_STATE_DETECTED:
         default:
-          newGsmCardState = DOM_CARDSTATE_NOT_READY;
+          newCardState = DOM_CARDSTATE_NOT_READY;
       }
  
-      if (this.gsmCardState == newGsmCardState) {
+      if (this.cardState == newCardState) {
         return;
       }
-      this.gsmCardState = newGsmCardState;
+      this.cardState = newCardState;
       if (DEBUG) {
         debug("iccStatus: " + this.iccStatus);
-        debug("gsmCardState: " + this.gsmCardState);
+        debug("cardState: " + this.cardState);
       }
       this.sendDOMMessage({type: "cardstatechange",
-                           cardState: this.gsmCardState});    
+                           cardState: this.cardState});    
     }
   },
 
