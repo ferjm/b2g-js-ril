@@ -25,8 +25,17 @@ Using the 'js' interpreter executable from a Firefox build:
 
 * Port forwarding
 
-To forward the port on the phone to the desktop (for desktop
-development), run the following command:
+To forward the socket on the phone to the desktop (for desktop
+development), you first need to get rilproxy to expose it as such,
+rather than exposing it to Gecko:
+
+  adb shell
+  # touch /data/local/rilproxyd
+  # ps
+  <look for rilproxyd_pid>
+  # kill <rilproxyd_pid>
+
+Now on the desktop, run the following command:
 
   adb forward tcp:6200 localreserved:rilproxyd
 
