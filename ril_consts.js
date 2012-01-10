@@ -197,8 +197,8 @@ const CARD_APP_STATE_UNKNOWN = 0;
 const CARD_APP_STATE_DETECTED = 1;
 const CARD_APP_STATE_PIN = 2; // If PIN1 or UPin is required.
 const CARD_APP_STATE_PUK = 3; // If PUK1 or Puk for UPin is required.
-const CARD_APP_STATE_SUBSCRIPTION_PERSO = 4; // perso_substate should be look 
-                                             // at when app_state is assigned 
+const CARD_APP_STATE_SUBSCRIPTION_PERSO = 4; // perso_substate should be looked
+                                             // at when app_state is assigned
                                              // to this value.
 const CARD_APP_STATE_READY = 5;
 

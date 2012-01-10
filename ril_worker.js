@@ -1102,7 +1102,7 @@ RIL[UNSOLICITED_CALL_RING] = function UNSOLICITED_CALL_RING() {
   Phone.onCallRing(info);
 };
 RIL[UNSOLICITED_RESPONSE_SIM_STATUS_CHANGED] = function UNSOLICITED_RESPONSE_SIM_STATUS_CHANGED() {
-  this[REQUEST_GET_SIM_STATUS]();
+  Phone.onICCStatusChanged();
 };
 RIL[UNSOLICITED_RESPONSE_CDMA_NEW_SMS] = null;
 RIL[UNSOLICITED_RESPONSE_NEW_BROADCAST_SMS] = null;
@@ -1331,8 +1331,11 @@ let Phone = {
   },
 
   onICCStatus: function onICCStatus(iccStatus) {
+    if (DEBUG) {
+        debug("iccStatus: " + JSON.stringify(iccStatus));
+    }
     this.iccStatus = iccStatus;
-    
+
     if ((!iccStatus) || (iccStatus.cardState == CARD_STATE_ABSENT)) {
       if (DEBUG) debug("ICC absent");
       if (this.cardState == DOM_CARDSTATE_ABSENT) {
@@ -1377,7 +1380,7 @@ let Phone = {
                              cardState: this.cardState});
         return;
       }
-      
+
       let newCardState;
       switch (app.app_state) {
         case CARD_APP_STATE_PIN:
@@ -1397,22 +1400,22 @@ let Phone = {
         default:
           newCardState = DOM_CARDSTATE_NOT_READY;
       }
- 
+
       if (this.cardState == newCardState) {
         return;
       }
       this.cardState = newCardState;
-      if (DEBUG) {
-        debug("iccStatus: " + this.iccStatus);
-        debug("cardState: " + this.cardState);
-      }
       this.sendDOMMessage({type: "cardstatechange",
-                           cardState: this.cardState});    
+                           cardState: this.cardState});
     }
   },
 
+  onICCStatusChanged: function onICCStatusChanged() {
+    RIL.getICCStatus();
+  },
+
   onEnterICCPIN: function onEnterICCPIN(response) {
-    if (DEBUG) debug("REQUEST_ENTER_SIM_PIN returned " + response);    
+    if (DEBUG) debug("REQUEST_ENTER_SIM_PIN returned " + response);
     //TODO
   },
 
